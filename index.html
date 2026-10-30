@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Train Operator Simulator</title>
+  <meta name="description" content="Simulador minimalista de control de tráfico ferroviario: eres el operador frente al monitor.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="terminal">
+    <header class="bar">
+      <div class="brand">
+        <span class="dot"></span>
+        <span>CTC-01</span>
+        <span class="dim">// PUESTO DE MANDO · SECTOR CENTRAL</span>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="dim">HORA</span><b id="clock">06:00</b></div>
+        <div class="stat"><span class="dim">PUNTOS</span><b id="score">0</b></div>
+        <div class="stat"><span class="dim">LLEGADAS</span><b id="delivered">0</b></div>
+        <div class="stat"><span class="dim">ERRORES</span><b id="strikes">0/3</b></div>
+        <div class="stat"><span class="dim">EN RED</span><b id="active">0</b></div>
+      </div>
+      <div class="buttons">
+        <button id="btn-speed" title="Velocidad de simulación">x1</button>
+        <button id="btn-sound" title="Sonido">SND ON</button>
+        <button id="btn-pause" title="Pausa (P)">PAUSA</button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <canvas id="map" aria-label="Monitor de tráfico ferroviario"></canvas>
+
+      <div id="overlay" class="overlay">
+        <div class="panel">
+          <h1 id="ov-title">TRAIN OPERATOR SIMULATOR</h1>
+          <div id="ov-body">
+            <p>Turno de mañana, 06:00 a 14:00. Los trenes entran por los terminales de la red y cada uno lleva su destino.</p>
+            <ul>
+              <li><b>Clic en un desvío</b> (círculo numerado) o pulsa su <b>tecla 1-0</b> para cambiar la vía.</li>
+              <li><b>Clic en un tren</b> para detenerlo o reanudar la marcha.</li>
+              <li>Un desvío ocupado por un tren no se puede mover.</li>
+              <li>Lleva cada tren al terminal de su color. Tres errores de ruta y te relevan del puesto.</li>
+              <li>Una colisión termina el turno al instante.</li>
+            </ul>
+          </div>
+          <button id="ov-btn" class="primary">INICIAR TURNO</button>
+        </div>
+      </div>
+    </main>
+
+    <footer class="console">
+      <div class="log-title dim">REGISTRO DE EVENTOS</div>
+      <ul id="log"></ul>
+    </footer>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
