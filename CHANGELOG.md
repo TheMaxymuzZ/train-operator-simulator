@@ -10,6 +10,8 @@ Todas las versiones del simulador. El formato sigue [Keep a Changelog](https://k
 
 ### Cambiado
 - Los AV llevan cabeza motriz aerodinámica en los dos extremos.
+- **Mapa más detallado**: costa de la península trazada con más precisión, Portugal, Francia y el norte de África en un tono más oscuro con sus fronteras, islas Baleares, ríos principales (Miño, Duero, Ebro, Tajo, Guadiana y Guadalquivir, con nombre al acercarse), nombres de mares y países, retícula de coordenadas, barra de escala y flecha de norte. Los nombres de estación llevan contorno para leerse sobre las vías.
+- El aviso de simulación en pausa pasa a la esquina superior derecha para no tapar la leyenda.
 - El panel del tren muestra la velocidad actual y la máxima permitida, la próxima parada con su hora prevista y estimada, y el tramo con nombres de estación.
 
 ## [0.4.0] - 2026-10-30
