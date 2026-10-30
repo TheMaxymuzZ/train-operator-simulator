@@ -1,7 +1,8 @@
 'use strict';
 
 // ---------------------------------------------------------------------------
-// Interface: map rendering, camera, side panel, train graph and controls.
+// Interface: map rendering, camera, input and the main loop. Side panel,
+// train graph and overlays live in panels.js.
 // ---------------------------------------------------------------------------
 
 const C = {
@@ -9,14 +10,13 @@ const C = {
   land: '#0a1118',
   coast: '#18232e',
   grid: '#0d141b',
-  hs: '#2f5068',
-  conv: '#56616d',
   text: '#b9c7d4',
   dim: '#5b6b7b',
   bright: '#e8f1f8',
   accent: '#4cf3a0',
   amber: '#ffb547',
   red: '#ff5c5c',
+  violet: '#c792ff',
   sigV: '#4cf3a0',
   sigA: '#ffb547',
   sigR: '#ff5c5c',
@@ -30,8 +30,9 @@ const chartEl = $('chart');
 const cctx = chartEl.getContext('2d');
 
 let speed = 10;
+let lastSpeed = 10;
 let running = false;
-let selected = null;   // { kind: 'st' | 'tr', id }
+let selected = null;   // { kind: 'st' | 'tr' | 'seg', id }
 let follow = false;
 let W = 0, H = 0;
 const cam = { x: 0, y: 0, s: 1 };
@@ -53,7 +54,7 @@ function resize() {
   const r = sizeCanvas(mapEl, mctx);
   W = r.width; H = r.height;
   sizeCanvas(chartEl, cctx);
-  if (first) fitBox(SECTORS['ESPAÑA']);
+  if (first && W > 0) fitBox(SECTORS['ESPAÑA']);
 }
 
 function fitBox([lon0, lat0, lon1, lat1]) {
@@ -123,16 +124,26 @@ function drawOutline() {
   mctx.stroke();
 }
 
-function drawLines() {
+function drawLines(pulse) {
   const off = trackOff();
+  const detail = cam.s >= 1.6;
   for (const seg of SEGS) {
     const g = segScreen(seg);
     const offs = seg.tracks === 2 ? [off, -off] : [0];
+    const isSel = selected && selected.kind === 'seg' && selected.id === seg.id;
     mctx.lineCap = 'butt';
     offs.forEach((o, ti) => {
-      mctx.strokeStyle = seg.vmax >= 250 ? C.hs : C.conv;
-      mctx.lineWidth = seg.tracks === 2 ? 1.3 : 1.6;
-      line(mctx, segPoint(g, 0, o), segPoint(g, 1, o));
+      const a = segPoint(g, 0, o), b = segPoint(g, 1, o);
+      mctx.strokeStyle = isSel ? C.accent : GAUGES[seg.gauge === 'M' ? 'U' : seg.gauge].color;
+      mctx.lineWidth = seg.tracks === 2 ? 1.4 : 1.8;
+      line(mctx, a, b);
+      if (seg.gauge === 'M' && !isSel) {
+        // mixed gauge: third rail drawn as a dashed overlay
+        mctx.setLineDash([4, 4]);
+        mctx.strokeStyle = GAUGES.I.color;
+        line(mctx, a, b);
+        mctx.setLineDash([]);
+      }
       // occupied blocks light up in the colour of the train type
       seg.occ[ti].forEach((id, j) => {
         if (id === null) return;
@@ -143,8 +154,35 @@ function drawLines() {
         line(mctx, segPoint(g, j / seg.n, o), segPoint(g, (j + 1) / seg.n, o));
         mctx.globalAlpha = 1;
       });
+      // failed track circuits flash red
+      seg.fault[ti].forEach((until, j) => {
+        if (until <= SIM.t) return;
+        mctx.strokeStyle = C.red;
+        mctx.globalAlpha = 0.4 + 0.6 * pulse;
+        mctx.lineWidth = 3;
+        mctx.setLineDash([3, 3]);
+        line(mctx, segPoint(g, j / seg.n, o), segPoint(g, (j + 1) / seg.n, o));
+        mctx.setLineDash([]);
+        mctx.globalAlpha = 1;
+      });
     });
-    if (cam.s >= 1.6) {
+    if (seg.ltv) {
+      const side = (seg.tracks === 2 ? off : 0) + 4;
+      mctx.strokeStyle = C.amber;
+      mctx.lineWidth = 1;
+      mctx.setLineDash([2, 3]);
+      line(mctx, segPoint(g, 0.05, side), segPoint(g, 0.95, side));
+      line(mctx, segPoint(g, 0.05, -side), segPoint(g, 0.95, -side));
+      mctx.setLineDash([]);
+      if (detail) {
+        const m = segPoint(g, 0.5, side + 10);
+        mctx.fillStyle = C.amber;
+        mctx.font = `10px ${FONT}`;
+        mctx.textAlign = 'center';
+        mctx.fillText(`LTV ${seg.ltv.limit}`, m.x, m.y);
+      }
+    }
+    if (detail) {
       mctx.strokeStyle = C.dim;
       mctx.lineWidth = 1;
       const tk = seg.tracks === 2 ? off + 3 : 3;
@@ -191,6 +229,17 @@ function drawStations(pulse) {
     mctx.strokeStyle = manual ? C.bright : '#7d93a8';
     mctx.lineWidth = manual ? 2 : 1.2;
     mctx.strokeRect(p.x - 4, p.y - 4, 8, 8);
+    if (st.changer) {
+      // gauge changer: small diamond to the left of the station
+      const cx = p.x - 10, busy = st.changerUntil > SIM.t;
+      mctx.beginPath();
+      mctx.moveTo(cx, p.y - 3.5); mctx.lineTo(cx + 3.5, p.y); mctx.lineTo(cx, p.y + 3.5); mctx.lineTo(cx - 3.5, p.y);
+      mctx.closePath();
+      mctx.strokeStyle = C.violet;
+      mctx.lineWidth = 1.2;
+      if (busy) { mctx.fillStyle = C.violet; mctx.fill(); }
+      mctx.stroke();
+    }
 
     mctx.font = `${detailed ? 11 : 10}px ${FONT}`;
     mctx.textAlign = 'left';
@@ -198,18 +247,22 @@ function drawStations(pulse) {
     const label = (detailed ? st.name.toUpperCase() : st.id) + (manual ? ' ·M' : '');
     mctx.fillText(label, p.x + 8, p.y - 6);
 
-    st.plats.forEach((pl, i) => {
-      const x = p.x + 8 + i * (cell + 2), y = p.y - 1;
+    let x = p.x + 8;
+    st.plats.forEach(pl => {
+      const h = pl.anden ? cell : Math.max(2, cell / 2);
+      const y = p.y - 1 + (cell - h);
       const occ = pl.train !== null ? SIM.trains.get(pl.train) : null;
       const res = pl.resv !== null ? SIM.trains.get(pl.resv) : null;
+      if (!pl.anden && pl.num === 1) x += 2;
       if (occ) {
         mctx.fillStyle = TYPES[occ.type].color;
-        mctx.fillRect(x, y, cell, cell);
+        mctx.fillRect(x, y, cell, h);
       } else {
         mctx.strokeStyle = res ? TYPES[res.type].color : '#2a3644';
         mctx.lineWidth = 1;
-        mctx.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
+        mctx.strokeRect(x + 0.5, y + 0.5, cell - 1, h - 1);
       }
+      x += cell + 2;
     });
 
     if (stationAlert(st.id)) {
@@ -221,8 +274,8 @@ function drawStations(pulse) {
       mctx.stroke();
       mctx.globalAlpha = 1;
     }
-    const selTrainHere = selected && selected.kind === 'tr' && SIM.trains.get(selected.id)?.at === 'st' &&
-      SIM.trains.get(selected.id).route[SIM.trains.get(selected.id).i] === st.id;
+    const sel = selected && selected.kind === 'tr' ? SIM.trains.get(selected.id) : null;
+    const selTrainHere = sel && sel.at === 'st' && sel.route[sel.i] === st.id;
     if ((selected && selected.kind === 'st' && selected.id === st.id) || selTrainHere) {
       mctx.strokeStyle = C.accent;
       mctx.lineWidth = 1.5;
@@ -245,6 +298,12 @@ function drawTrains(pulse) {
     mctx.beginPath();
     mctx.arc(p.x, p.y, r, 0, Math.PI * 2);
     mctx.fill();
+    if (tr.brokenUntil > SIM.t) {
+      mctx.strokeStyle = C.red;
+      mctx.lineWidth = 1.5;
+      line(mctx, { x: p.x - r - 2, y: p.y - r - 2 }, { x: p.x + r + 2, y: p.y + r + 2 });
+      line(mctx, { x: p.x - r - 2, y: p.y + r + 2 }, { x: p.x + r + 2, y: p.y - r - 2 });
+    }
     const stuck = tr.waitSince !== null && (tr.needsAction || SIM.t - tr.waitSince > 600);
     if (stuck) {
       mctx.strokeStyle = C.red;
@@ -276,7 +335,7 @@ function drawMap(now) {
   mctx.fillRect(0, 0, W, H);
   drawGrid();
   drawOutline();
-  drawLines();
+  drawLines(pulse);
   drawStations(pulse);
   drawTrains(pulse);
   if (running && speed === 0) {
@@ -288,6 +347,12 @@ function drawMap(now) {
 }
 
 // --- Picking & input --------------------------------------------------------
+
+function distToSegment(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const t = clamp(((p.x - a.x) * dx + (p.y - a.y) * dy) / (dx * dx + dy * dy || 1), 0, 1);
+  return Math.hypot(p.x - a.x - dx * t, p.y - a.y - dy * t);
+}
 
 function pick(sx, sy) {
   let best = null, bd = 12;
@@ -302,9 +367,16 @@ function pick(sx, sy) {
   for (const st of Object.values(ST)) {
     const p = toScreen(st);
     // the platform cells to the right of the marker count too
-    const cx = clamp(sx, p.x, p.x + 8 + st.plats.length * 10);
+    const cx = clamp(sx, p.x - 12, p.x + 8 + st.plats.length * 10);
     const d = Math.hypot(cx - sx, p.y - sy);
     if (d < bd) { bd = d; best = { kind: 'st', id: st.id }; }
+  }
+  if (best) return best;
+  bd = 7;
+  for (const seg of SEGS) {
+    const g = segScreen(seg);
+    const d = distToSegment({ x: sx, y: sy }, g.pa, g.pb);
+    if (d < bd) { bd = d; best = { kind: 'seg', id: seg.id }; }
   }
   return best;
 }
@@ -377,14 +449,20 @@ function select(sel) {
 }
 
 window.addEventListener('keydown', e => {
-  if (e.target.tagName === 'SELECT') return;
-  if (e.key === ' ') { e.preventDefault(); setSpeed(speed === 0 ? lastSpeed : 0); }
-  if (e.key === 'Escape') select(null);
+  if (e.target.tagName === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { if (overlayOpen() && running) closeOverlay(); else select(null); return; }
+  if (!running) return;
+  if (k === ' ') { e.preventDefault(); setSpeed(speed === 0 ? lastSpeed : 0); }
+  else if (k === 'h' || k === '?') showHelp();
+  else if (k === 'i') showReport(false);
+  else if (k === '+' || k === '=') zoomAt(W / 2, H / 2, 1.25);
+  else if (k === '-') zoomAt(W / 2, H / 2, 0.8);
+  else if (k === '0') fitBox(SECTORS['ESPAÑA']);
 });
 
 // --- Speed & sectors -----------------------------------------------------------
 
-let lastSpeed = 10;
 function setSpeed(v) {
   if (v > 0) lastSpeed = v;
   speed = v;
@@ -402,325 +480,14 @@ for (const name of Object.keys(SECTORS)) {
   $('sectors').appendChild(b);
 }
 
-// --- Side panel ----------------------------------------------------------------
-
-const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const dot = type => `<span class="tag" style="background:${TYPES[type].color}"></span>`;
-const delayCls = d => d > 900 ? 'vlate' : d > PUNCTUAL ? 'late' : 'ok';
-
-function trainStatus(tr) {
-  if (tr.waitSince !== null) {
-    const mins = Math.floor((SIM.t - tr.waitSince) / 60);
-    return `<span class="${tr.needsAction ? 'alert' : 'late'}">${esc(tr.waitReason)} · ${mins} min</span>`;
-  }
-  if (tr.at === 'line') return `${Math.round(tr.v)} km/h → ${esc(ST[nextStation(tr)].name)}`;
-  if (tr.i === tr.route.length - 1) return 'fin de trayecto';
-  if (tr.hold) return '<span class="late">retenido</span>';
-  return `sale ${fmt.time(Math.max(tr.readyAt, tr.sched[tr.i].dep ?? 0))}`;
-}
-
-function alertsList() {
-  const list = [...SIM.trains.values()]
-    .filter(tr => tr.waitSince !== null && (tr.needsAction || SIM.t - tr.waitSince > 600))
-    .sort((a, b) => a.waitSince - b.waitSince);
-  return list;
-}
-
-function detailNone() {
-  let h = `<div class="d-title">PUESTO DE MANDO</div>
-    <div class="d-note">Selecciona una estación o un tren en el mapa. Las estaciones con borde blanco (·M) están en mando manual.</div>
-    <div class="d-sec">AVISOS</div>`;
-  const al = alertsList();
-  if (!al.length) h += '<div class="d-note">Sin avisos.</div>';
-  for (const tr of al.slice(0, 14)) {
-    const where = tr.at === 'st' ? ST[tr.route[tr.i]].name : `antes de ${ST[nextStation(tr)].name}`;
-    h += `<div class="d-row click" data-act="selTr" data-id="${tr.id}">${dot(tr.type)}
-      <span class="grow">${trainLabel(tr)} · ${esc(where)}<br>${trainStatus(tr)}</span></div>`;
-  }
-  return h;
-}
-
-function detailStation(st) {
-  const manual = st.mode === 'MANUAL';
-  let h = `<div class="d-title">${esc(st.name.toUpperCase())} <span class="dim">${st.id}</span></div>
-    <div class="d-sub">${st.plats.length} vías · mando ${manual ? 'manual' : 'automático'}</div>
-    <div class="d-row">
-      <button data-act="mode" data-st="${st.id}" class="${manual ? 'on' : ''}">MANUAL</button>
-      <button data-act="mode" data-st="${st.id}" class="${manual ? '' : 'on'}">AUTO</button>
-    </div>
-    <div class="d-sec">VÍAS</div>`;
-  st.plats.forEach((p, i) => {
-    h += `<div class="d-row"><span class="plat">V${i + 1}</span>`;
-    const tr = p.train !== null ? SIM.trains.get(p.train) : null;
-    const rs = p.resv !== null ? SIM.trains.get(p.resv) : null;
-    if (tr) {
-      const last = tr.i === tr.route.length - 1;
-      const dest = ST[tr.route[tr.route.length - 1]].name;
-      h += `${dot(tr.type)}<span class="grow" data-act="selTr" data-id="${tr.id}" style="cursor:pointer">${trainLabel(tr)} → ${esc(dest)}<br>${trainStatus(tr)}</span>`;
-      if (!last) {
-        if (manual) h += `<button data-act="auth" data-id="${tr.id}" ${tr.auth ? 'class="on"' : ''}>SALIDA</button>`;
-        h += `<button data-act="hold" data-id="${tr.id}" ${tr.hold ? 'class="warn"' : ''}>${tr.hold ? 'LIBERAR' : 'RETENER'}</button>`;
-      }
-    } else if (rs) {
-      h += `${dot(rs.type)}<span class="grow dim">reservada · ${trainLabel(rs)}</span>`;
-    } else {
-      h += '<span class="grow dim">libre</span>';
-    }
-    h += '</div>';
-  });
-
-  const incoming = [...SIM.trains.values()]
-    .filter(tr => tr.at === 'line' && nextStation(tr) === st.id)
-    .sort((a, b) => (a.seg.len - a.pos) - (b.seg.len - b.pos));
-  h += '<div class="d-sec">LLEGANDO</div>';
-  if (!incoming.length) h += '<div class="d-note">Ningún tren en aproximación.</div>';
-  const free = st.plats.map((p, i) => (p.train === null && p.resv === null ? i : -1)).filter(i => i >= 0);
-  for (const tr of incoming) {
-    const km = Math.round(tr.seg.len - tr.pos);
-    const from = ST[tr.route[tr.i]].id;
-    h += `<div class="d-row">${dot(tr.type)}<span class="grow" data-act="selTr" data-id="${tr.id}" style="cursor:pointer">${trainLabel(tr)} desde ${from} · ${km} km · ${tr.stops.has(st.id) || tr.i + 1 === tr.route.length - 1 ? 'para' : 'pasa'}<br>${trainStatus(tr)}</span>`;
-    if (tr.resv) h += `<span class="dim">V${tr.resv.plat + 1}</span>`;
-    else if (manual) {
-      h += '<div class="btns">';
-      for (const i of free) h += `<button data-act="assign" data-id="${tr.id}" data-st="${st.id}" data-plat="${i}">V${i + 1}</button>`;
-      if (!isStop(tr, tr.i + 1)) h += `<button data-act="auth" data-id="${tr.id}" ${tr.auth ? 'class="on"' : ''}>PASO</button>`;
-      h += '</div>';
-    }
-    h += '</div>';
-  }
-
-  const upcoming = [...SIM.queue, ...SIM.services.slice(SIM.next, SIM.next + 400)]
-    .filter(s => s.route[0] === st.id).slice(0, 4);
-  h += '<div class="d-sec">PRÓXIMOS ORÍGENES</div>';
-  if (!upcoming.length) h += '<div class="d-note">Sin más salidas hoy.</div>';
-  for (const s of upcoming) {
-    h += `<div class="d-row">${dot(s.type)}<span class="grow">${fmt.time(s.sched[0].dep)} ${s.type} ${fmt.num(s.num)} → ${esc(ST[s.route[s.route.length - 1]].name)}</span></div>`;
-  }
-  return h;
-}
-
-function detailTrain(tr) {
-  const d = estDelay(tr);
-  const origin = ST[tr.route[0]].name, dest = ST[tr.route[tr.route.length - 1]].name;
-  let where;
-  if (tr.at === 'st') where = `${ST[tr.route[tr.i]].name}, vía ${tr.plat + 1}`;
-  else where = `${ST[tr.route[tr.i]].id} → ${ST[nextStation(tr)].id}, km ${Math.round(tr.pos)} de ${Math.round(tr.seg.len)} (${tr.seg.tracks === 1 ? 'vía única' : 'doble vía'})`;
-  const atManual = tr.at === 'st' && ST[tr.route[tr.i]].mode === 'MANUAL' && tr.i < tr.route.length - 1;
-  let h = `<div class="d-title">${dot(tr.type)} ${trainLabel(tr)}</div>
-    <div class="d-sub">${TYPES[tr.type].name} · ${esc(origin)} → ${esc(dest)}</div>
-    <div class="d-row"><span class="grow">${esc(where)}<br>${trainStatus(tr)}</span></div>
-    <div class="d-row">Retraso estimado <b class="${delayCls(d)}">${fmt.delay(d)}</b></div>
-    <div class="d-row">
-      <button data-act="hold" data-id="${tr.id}" ${tr.hold ? 'class="warn"' : ''}>${tr.hold ? 'LIBERAR' : 'RETENER'}</button>
-      ${atManual ? `<button data-act="auth" data-id="${tr.id}" ${tr.auth ? 'class="on"' : ''}>SALIDA</button>` : ''}
-      <button data-act="follow" ${follow ? 'class="on"' : ''}>SEGUIR</button>
-    </div>
-    <div class="d-sec">ITINERARIO</div>
-    <table class="route"><tr class="dim"><td></td><td>prev.</td><td>real</td><td></td></tr>`;
-  tr.route.forEach((sid, i) => {
-    const s = tr.sched[i], a = tr.actual[i];
-    const stop = isStop(tr, i) || i === 0;
-    const plan = i === 0 ? s.dep : s.arr;
-    const real = i === 0 ? a.dep : a.arr;
-    const cls = i < tr.i || (i === tr.i && tr.at === 'line') ? 'past' : i === tr.i ? 'cur' : '';
-    const dl = real != null ? `<span class="${delayCls(real - plan)}">${fmt.delay(real - plan)}</span>` : '';
-    h += `<tr class="${cls}"><td${stop ? '' : ' class="pass"'}>${esc(ST[sid].name)}${stop ? '' : ' (pasa)'}</td>
-      <td>${fmt.time(plan)}</td><td>${fmt.time(real)}</td><td>${dl}</td></tr>`;
-  });
-  return h + '</table>';
-}
-
-let lastDetail = '';
-function renderDetail(force) {
-  let h;
-  if (selected && selected.kind === 'st') h = detailStation(ST[selected.id]);
-  else if (selected && selected.kind === 'tr') {
-    const tr = SIM.trains.get(selected.id);
-    if (tr) h = detailTrain(tr);
-    else { selected = null; h = detailNone(); }
-  } else h = detailNone();
-  if (force || h !== lastDetail) { $('detail').innerHTML = h; lastDetail = h; }
-}
-
-// pointerdown so a click is never lost to a panel refresh
-$('detail').addEventListener('pointerdown', e => {
-  const el = e.target.closest('[data-act]');
-  if (!el) return;
-  const id = Number(el.dataset.id);
-  switch (el.dataset.act) {
-    case 'mode': if (ST[el.dataset.st].mode !== (el.textContent.trim())) cmdToggleMode(el.dataset.st); break;
-    case 'auth': cmdAuthorize(id); break;
-    case 'hold': cmdHold(id); break;
-    case 'assign': cmdAssign(id, el.dataset.st, Number(el.dataset.plat)); break;
-    case 'selTr': selected = { kind: 'tr', id }; follow = false; break;
-    case 'follow': follow = !follow; break;
-  }
-  renderDetail(true);
-});
-
-// --- Train graph ---------------------------------------------------------------
-
-for (const name of Object.keys(CORRIDORS)) {
-  const o = document.createElement('option');
-  o.value = o.textContent = name;
-  $('corridor').appendChild(o);
-}
-$('corridor').addEventListener('change', drawChart);
-
-function drawChart() {
-  const r = chartEl.getBoundingClientRect();
-  const cw = r.width, ch = r.height;
-  cctx.fillStyle = C.bg;
-  cctx.fillRect(0, 0, cw, ch);
-  const corr = CORRIDORS[$('corridor').value];
-  const idx = {}, km = [0];
-  corr.forEach((s, i) => { idx[s] = i; if (i) km.push(km[i - 1] + segBetween(corr[i - 1], s).len); });
-  const total = km[km.length - 1];
-  const L = 34, R = 6, T = 8, B = 16;
-  const t0 = SIM.t - 90 * 60, t1 = SIM.t + 60 * 60;
-  const X = t => L + (t - t0) / (t1 - t0) * (cw - L - R);
-  const Y = k => T + k / total * (ch - T - B);
-
-  cctx.font = `10px ${FONT}`;
-  cctx.lineWidth = 1;
-  cctx.textBaseline = 'middle';
-  cctx.textAlign = 'left';
-  corr.forEach((s, i) => {
-    cctx.strokeStyle = '#18222c';
-    line(cctx, { x: L, y: Y(km[i]) }, { x: cw - R, y: Y(km[i]) });
-    cctx.fillStyle = C.dim;
-    cctx.fillText(s, 2, Y(km[i]));
-  });
-  cctx.textAlign = 'center';
-  cctx.textBaseline = 'alphabetic';
-  for (let h = Math.ceil(t0 / 1800) * 1800; h < t1; h += 1800) {
-    cctx.strokeStyle = h % 3600 ? '#0f171e' : '#18222c';
-    line(cctx, { x: X(h), y: T }, { x: X(h), y: ch - B });
-    if (h % 3600 === 0) { cctx.fillStyle = C.dim; cctx.fillText(fmt.time(h), X(h), ch - 3); }
-  }
-
-  const all = [...SIM.archive, ...SIM.trains.values()];
-  cctx.save();
-  cctx.beginPath();
-  cctx.rect(L, 0, cw - L - R, ch);
-  cctx.clip();
-  for (const tr of all) {
-    const color = TYPES[tr.type].color;
-    // planned path, dashed
-    cctx.setLineDash([3, 3]);
-    cctx.strokeStyle = color;
-    cctx.globalAlpha = 0.35;
-    cctx.beginPath();
-    let prev = null;
-    tr.route.forEach((sid, i) => {
-      if (!(sid in idx)) { prev = null; return; }
-      const s = tr.sched[i];
-      const ta = s.arr ?? s.dep, td = s.dep ?? s.arr;
-      const y = Y(km[idx[sid]]);
-      if (prev !== null && Math.abs(prev - idx[sid]) === 1) cctx.lineTo(X(ta), y); else cctx.moveTo(X(ta), y);
-      cctx.lineTo(X(td), y);
-      prev = idx[sid];
-    });
-    cctx.stroke();
-    // real path, solid
-    cctx.setLineDash([]);
-    cctx.globalAlpha = 1;
-    cctx.lineWidth = 1.4;
-    cctx.beginPath();
-    let pen = false;
-    const pts = tr.hist.slice();
-    if (SIM.trains.has(tr.id)) {
-      pts.push(tr.at === 'st' ? { t: SIM.t, s: tr.route[tr.i] } : { t: SIM.t, g: tr.seg.id, d: tr.dir, p: tr.pos });
-    }
-    for (const smp of pts) {
-      const y = sampleY(smp, idx, km);
-      if (y === null || smp.t < t0 - 600) { pen = false; continue; }
-      if (pen) cctx.lineTo(X(smp.t), Y(y)); else cctx.moveTo(X(smp.t), Y(y));
-      pen = true;
-    }
-    cctx.stroke();
-    cctx.lineWidth = 1;
-  }
-  cctx.restore();
-  cctx.strokeStyle = C.accent;
-  cctx.setLineDash([]);
-  line(cctx, { x: X(SIM.t), y: T }, { x: X(SIM.t), y: ch - B });
-}
-
-function sampleY(s, idx, km) {
-  if (s.s) return s.s in idx ? km[idx[s.s]] : null;
-  const seg = SEGS[s.g];
-  const ia = idx[seg.a], ib = idx[seg.b];
-  if (ia === undefined || ib === undefined || Math.abs(ia - ib) !== 1) return null;
-  const fromA = s.d === 1 ? s.p : seg.len - s.p;
-  return ia < ib ? km[ia] + fromA : km[ia] - fromA;
-}
-
-// --- HUD, log, overlay -----------------------------------------------------------
-
-listeners.log = (time, msg, cls) => {
-  const li = document.createElement('li');
-  if (cls) li.className = cls;
-  const t = document.createElement('span');
-  t.className = 't';
-  t.textContent = time;
-  li.append(t, document.createTextNode(msg));
-  const ul = $('log');
-  ul.prepend(li);
-  while (ul.children.length > 6) ul.lastChild.remove();
-};
-
-function updateHud() {
-  $('clock').textContent = fmt.time(Math.max(SIM.t, 0));
-  $('s-active').textContent = SIM.trains.size;
-  const st = SIM.stats;
-  $('s-done').textContent = st.done;
-  const pct = st.done ? Math.round(st.punctual / st.done * 100) : null;
-  const pe = $('s-punct');
-  pe.textContent = pct === null ? '--' : pct + '%';
-  pe.className = pct === null || pct >= 90 ? '' : pct >= 75 ? 'warn' : 'bad';
-  $('s-delay').textContent = st.done ? fmt.delay(st.delaySum / st.done) : '--';
-  const n = alertsList().length;
-  $('s-alerts').textContent = n;
-  $('s-alerts').className = n ? 'bad' : '';
-}
-
-function showEnd() {
-  running = false;
-  const st = SIM.stats;
-  const pct = st.done ? Math.round(st.punctual / st.done * 100) : 0;
-  $('ov-title').textContent = 'FIN DE LA JORNADA';
-  $('ov-body').innerHTML = `<p>Resumen del servicio:</p>
-    <ul>
-      <li>Trenes llegados: <b>${st.done}</b></li>
-      <li>Puntualidad (≤ 5 min): <b>${pct}%</b></li>
-      <li>Retraso medio: <b>${st.done ? fmt.delay(st.delaySum / st.done) : '--'}</b></li>
-    </ul>`;
-  $('ov-btn').textContent = 'NUEVA JORNADA';
-  $('overlay').classList.remove('hidden');
-}
-
-$('ov-btn').addEventListener('click', () => {
-  if (SIM.over || SIM.stats.done) {
-    resetSim();
-    for (const s of Object.values(ST)) s.mode = 'AUTO';
-  }
-  $('log').innerHTML = '';
-  $('overlay').classList.add('hidden');
-  running = true;
-  selected = null;
-  setSpeed(10);
-  log('Jornada iniciada. Todas las estaciones en mando automático.', 'ok');
-});
-
 // --- Loop -----------------------------------------------------------------------
 
 let last = performance.now(), lastPanel = 0, lastChart = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
-  if (running && speed > 0) advance(dt * speed);
-  if (running && SIM.over) showEnd();
+  if (running && speed > 0 && !overlayOpen()) advance(dt * speed);
+  if (running && SIM.over) { running = false; showReport(true); }
   if (follow && selected && selected.kind === 'tr') {
     const tr = SIM.trains.get(selected.id);
     if (tr) {
@@ -734,10 +501,3 @@ function frame(now) {
   if (now - lastChart > 500) { drawChart(); lastChart = now; }
   requestAnimationFrame(frame);
 }
-
-const ro = new ResizeObserver(resize);
-ro.observe(mapEl);
-ro.observe(chartEl);
-window.addEventListener('resize', resize);
-resize();
-requestAnimationFrame(frame);

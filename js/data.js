@@ -5,60 +5,72 @@
 // Coordinates are real longitude/latitude; line lengths are derived from them.
 // ---------------------------------------------------------------------------
 
+// platforms: tracks with a passenger platform (vías con andén)
+// sidings:   tracks without platform, for freight and overtaking (vías de apartado)
+// changer:   the station has a gauge changer (cambiador de ancho)
 const STATIONS = {
-  ACO: { name: 'A Coruña',        lon: -8.41, lat: 43.36, platforms: 3 },
-  OUR: { name: 'Ourense',         lon: -7.86, lat: 42.34, platforms: 3 },
-  PON: { name: 'Ponferrada',      lon: -6.60, lat: 42.55, platforms: 2 },
-  LEO: { name: 'León',            lon: -5.57, lat: 42.60, platforms: 3 },
-  VLL: { name: 'Valladolid',      lon: -4.72, lat: 41.65, platforms: 4 },
-  BUR: { name: 'Burgos',          lon: -3.70, lat: 42.34, platforms: 3 },
-  MIR: { name: 'Miranda de Ebro', lon: -2.95, lat: 42.68, platforms: 3 },
-  BIL: { name: 'Bilbao',          lon: -2.93, lat: 43.26, platforms: 3 },
-  TUD: { name: 'Tudela',          lon: -1.61, lat: 42.06, platforms: 2 },
-  LOG: { name: 'Logroño',         lon: -2.45, lat: 42.47, platforms: 3 },
-  ZGZ: { name: 'Zaragoza',        lon: -0.88, lat: 41.65, platforms: 4 },
-  LLE: { name: 'Lleida',          lon:  0.62, lat: 41.62, platforms: 3 },
-  TGN: { name: 'Tarragona',       lon:  1.25, lat: 41.12, platforms: 4 },
-  BCN: { name: 'Barcelona',       lon:  2.17, lat: 41.38, platforms: 6 },
-  VIN: { name: 'Vinaròs',         lon:  0.47, lat: 40.47, platforms: 3 },
-  CAS: { name: 'Castellón',       lon: -0.04, lat: 39.99, platforms: 3 },
-  VAL: { name: 'Valencia',        lon: -0.38, lat: 39.47, platforms: 4 },
-  ALB: { name: 'Albacete',        lon: -1.86, lat: 38.99, platforms: 3 },
-  ALI: { name: 'Alicante',        lon: -0.49, lat: 38.35, platforms: 3 },
-  MAD: { name: 'Madrid',          lon: -3.69, lat: 40.41, platforms: 8 },
-  GUA: { name: 'Guadalajara',     lon: -3.17, lat: 40.63, platforms: 2 },
-  CAL: { name: 'Calatayud',       lon: -1.64, lat: 41.35, platforms: 2 },
-  SEG: { name: 'Segovia',         lon: -4.12, lat: 40.95, platforms: 2 },
-  CUE: { name: 'Cuenca',          lon: -2.13, lat: 40.07, platforms: 3 },
-  REQ: { name: 'Requena',         lon: -1.10, lat: 39.49, platforms: 2 },
-  PUE: { name: 'Puertollano',     lon: -4.11, lat: 38.69, platforms: 2 },
-  ANT: { name: 'Antequera',       lon: -4.56, lat: 37.02, platforms: 2 },
-  CRE: { name: 'Ciudad Real',     lon: -3.93, lat: 38.99, platforms: 3 },
-  COR: { name: 'Córdoba',         lon: -4.78, lat: 37.89, platforms: 4 },
-  SEV: { name: 'Sevilla',         lon: -5.98, lat: 37.39, platforms: 4 },
-  MAL: { name: 'Málaga',          lon: -4.42, lat: 36.72, platforms: 3 },
+  ACO: { name: 'A Coruña',        lon: -8.41, lat: 43.36, platforms: 3, sidings: 0 },
+  OUR: { name: 'Ourense',         lon: -7.86, lat: 42.34, platforms: 3, sidings: 1, changer: true },
+  PON: { name: 'Ponferrada',      lon: -6.60, lat: 42.55, platforms: 2, sidings: 1 },
+  LEO: { name: 'León',            lon: -5.57, lat: 42.60, platforms: 3, sidings: 1, changer: true },
+  VLL: { name: 'Valladolid',      lon: -4.72, lat: 41.65, platforms: 4, sidings: 2, changer: true },
+  BUR: { name: 'Burgos',          lon: -3.70, lat: 42.34, platforms: 3, sidings: 1 },
+  MIR: { name: 'Miranda de Ebro', lon: -2.95, lat: 42.68, platforms: 3, sidings: 2 },
+  BIL: { name: 'Bilbao',          lon: -2.93, lat: 43.26, platforms: 3, sidings: 0 },
+  TUD: { name: 'Tudela',          lon: -1.61, lat: 42.06, platforms: 2, sidings: 1 },
+  LOG: { name: 'Logroño',         lon: -2.45, lat: 42.47, platforms: 3, sidings: 1 },
+  ZGZ: { name: 'Zaragoza',        lon: -0.88, lat: 41.65, platforms: 4, sidings: 2, changer: true },
+  LLE: { name: 'Lleida',          lon:  0.62, lat: 41.62, platforms: 3, sidings: 1 },
+  TGN: { name: 'Tarragona',       lon:  1.25, lat: 41.12, platforms: 4, sidings: 1 },
+  BCN: { name: 'Barcelona',       lon:  2.17, lat: 41.38, platforms: 6, sidings: 0 },
+  VIN: { name: 'Vinaròs',         lon:  0.47, lat: 40.47, platforms: 2, sidings: 1 },
+  CAS: { name: 'Castellón',       lon: -0.04, lat: 39.99, platforms: 2, sidings: 1 },
+  VAL: { name: 'Valencia',        lon: -0.38, lat: 39.47, platforms: 4, sidings: 1 },
+  ALB: { name: 'Albacete',        lon: -1.86, lat: 38.99, platforms: 3, sidings: 1 },
+  ALI: { name: 'Alicante',        lon: -0.49, lat: 38.35, platforms: 3, sidings: 0 },
+  MAD: { name: 'Madrid',          lon: -3.69, lat: 40.41, platforms: 8, sidings: 0 },
+  GUA: { name: 'Guadalajara',     lon: -3.17, lat: 40.63, platforms: 2, sidings: 1 },
+  CAL: { name: 'Calatayud',       lon: -1.64, lat: 41.35, platforms: 2, sidings: 1 },
+  SEG: { name: 'Segovia',         lon: -4.12, lat: 40.95, platforms: 2, sidings: 1 },
+  CUE: { name: 'Cuenca',          lon: -2.13, lat: 40.07, platforms: 2, sidings: 1 },
+  REQ: { name: 'Requena',         lon: -1.10, lat: 39.49, platforms: 2, sidings: 1 },
+  PUE: { name: 'Puertollano',     lon: -4.11, lat: 38.69, platforms: 2, sidings: 1 },
+  ANT: { name: 'Antequera',       lon: -4.56, lat: 37.02, platforms: 2, sidings: 1 },
+  CRE: { name: 'Ciudad Real',     lon: -3.93, lat: 38.99, platforms: 2, sidings: 1 },
+  COR: { name: 'Córdoba',         lon: -4.78, lat: 37.89, platforms: 4, sidings: 1 },
+  SEV: { name: 'Sevilla',         lon: -5.98, lat: 37.39, platforms: 4, sidings: 0 },
+  MAL: { name: 'Málaga',          lon: -4.42, lat: 36.72, platforms: 3, sidings: 0 },
 };
 
-// [from, to, tracks (1 = vía única, 2 = doble vía), line speed km/h]
+// [from, to, tracks (1 = vía única, 2 = doble vía), line speed km/h, gauge]
+// gauge: 'U' ancho estándar (UIC), 'I' ancho ibérico, 'M' ancho mixto (tercer carril)
 const LINES = [
-  ['MAD', 'GUA', 2, 300], ['GUA', 'CAL', 2, 300], ['CAL', 'ZGZ', 2, 300],
-  ['ZGZ', 'LLE', 2, 300], ['LLE', 'TGN', 2, 300], ['TGN', 'BCN', 2, 250],
-  ['MAD', 'CRE', 2, 300], ['CRE', 'PUE', 2, 300], ['PUE', 'COR', 2, 300],
-  ['COR', 'SEV', 2, 250], ['COR', 'ANT', 2, 300], ['ANT', 'MAL', 2, 300],
-  ['MAD', 'CUE', 2, 300], ['CUE', 'REQ', 2, 300], ['REQ', 'VAL', 2, 250],
-  ['CUE', 'ALB', 2, 300], ['ALB', 'ALI', 2, 300],
-  ['MAD', 'SEG', 2, 300], ['SEG', 'VLL', 2, 300], ['VLL', 'LEO', 2, 250],
-  ['LEO', 'PON', 1, 160], ['PON', 'OUR', 1, 160], ['OUR', 'ACO', 2, 250],
-  ['VLL', 'BUR', 1, 160], ['BUR', 'MIR', 1, 160], ['MIR', 'BIL', 1, 140],
-  ['ZGZ', 'TUD', 1, 160], ['TUD', 'LOG', 1, 160], ['LOG', 'MIR', 1, 160],
-  ['VAL', 'CAS', 2, 200], ['CAS', 'VIN', 2, 200], ['VIN', 'TGN', 2, 200],
+  ['MAD', 'GUA', 2, 300, 'U'], ['GUA', 'CAL', 2, 300, 'U'], ['CAL', 'ZGZ', 2, 300, 'U'],
+  ['ZGZ', 'LLE', 2, 300, 'M'], ['LLE', 'TGN', 2, 300, 'M'], ['TGN', 'BCN', 2, 250, 'M'],
+  ['MAD', 'CRE', 2, 300, 'U'], ['CRE', 'PUE', 2, 300, 'U'], ['PUE', 'COR', 2, 300, 'U'],
+  ['COR', 'SEV', 2, 250, 'U'], ['COR', 'ANT', 2, 300, 'U'], ['ANT', 'MAL', 2, 300, 'U'],
+  ['MAD', 'CUE', 2, 300, 'U'], ['CUE', 'REQ', 2, 300, 'U'], ['REQ', 'VAL', 2, 250, 'U'],
+  ['CUE', 'ALB', 2, 300, 'U'], ['ALB', 'ALI', 2, 300, 'U'],
+  ['MAD', 'SEG', 2, 300, 'U'], ['SEG', 'VLL', 2, 300, 'U'], ['VLL', 'LEO', 2, 250, 'U'],
+  ['LEO', 'PON', 1, 160, 'I'], ['PON', 'OUR', 1, 160, 'I'], ['OUR', 'ACO', 2, 250, 'U'],
+  ['VLL', 'BUR', 1, 160, 'I'], ['BUR', 'MIR', 1, 160, 'I'], ['MIR', 'BIL', 1, 140, 'I'],
+  ['ZGZ', 'TUD', 1, 160, 'I'], ['TUD', 'LOG', 1, 160, 'I'], ['LOG', 'MIR', 1, 160, 'I'],
+  ['VAL', 'CAS', 2, 200, 'I'], ['CAS', 'VIN', 2, 200, 'I'], ['VIN', 'TGN', 2, 200, 'I'],
 ];
 
+const GAUGES = {
+  U: { name: 'ancho estándar', color: '#2f5068' },
+  I: { name: 'ancho ibérico',  color: '#5d5a52' },
+  M: { name: 'ancho mixto',    color: '#3f5a5c' },
+};
+
+// gauge: 'U' only standard, 'I' only Iberian, 'D' dual (changes at a gauge
+// changer), 'auto' takes whatever single gauge its route allows.
 const TYPES = {
-  AV:  { name: 'Alta velocidad', vmax: 300, acc: 0.45, dwell: 120, color: '#5fd4ff' },
-  LD:  { name: 'Larga distancia', vmax: 200, acc: 0.40, dwell: 120, color: '#c792ff' },
-  MD:  { name: 'Media distancia', vmax: 160, acc: 0.50, dwell: 60,  color: '#4cf3a0' },
-  MER: { name: 'Mercancías',      vmax: 100, acc: 0.20, dwell: 0,   color: '#ffb547' },
+  AV:  { name: 'Alta velocidad',  vmax: 300, acc: 0.45, dwell: 120, pax: true,  gauge: 'U',    color: '#5fd4ff' },
+  LD:  { name: 'Larga distancia', vmax: 200, acc: 0.40, dwell: 120, pax: true,  gauge: 'D',    color: '#c792ff' },
+  MD:  { name: 'Media distancia', vmax: 160, acc: 0.50, dwell: 60,  pax: true,  gauge: 'auto', color: '#4cf3a0' },
+  MER: { name: 'Mercancías',      vmax: 100, acc: 0.20, dwell: 0,   pax: false, gauge: 'I',    color: '#ffb547' },
 };
 
 // Daily plan. Each pattern runs in both directions between first and last
@@ -80,9 +92,9 @@ const PATTERNS = [
   { type: 'MD',  route: ['MAD', 'CRE', 'PUE'], first: '06:55', last: '20:55', every: 120 },
   { type: 'MD',  route: ['BUR', 'MIR', 'BIL'], first: '07:45', last: '19:45', every: 240 },
   { type: 'MER', route: ['VAL', 'CAS', 'VIN', 'TGN', 'LLE', 'ZGZ'], first: '06:20', last: '20:20', every: 240 },
-  { type: 'MER', route: ['ALI', 'ALB', 'CUE', 'MAD'], first: '06:10', last: '22:10', every: 240 },
+  { type: 'MER', route: ['VAL', 'CAS', 'VIN', 'TGN', 'BCN'], first: '06:10', last: '20:10', every: 240 },
   { type: 'MER', route: ['BIL', 'MIR', 'LOG', 'TUD', 'ZGZ'], first: '06:50', last: '18:50', every: 300 },
-  { type: 'MER', route: ['SEV', 'COR', 'PUE', 'CRE', 'MAD'], first: '08:20', last: '20:20', every: 300 },
+  { type: 'MER', route: ['BIL', 'MIR', 'BUR', 'VLL'], first: '08:20', last: '18:20', every: 300 },
 ];
 
 // Corridors available in the train graph (time-distance diagram).
