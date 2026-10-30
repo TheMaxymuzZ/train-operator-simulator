@@ -101,23 +101,131 @@ function line(ctx, a, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x
 
 // --- Map drawing -----------------------------------------------------------
 
+const GEO_XY = {
+  land: GEO.land.map(poly => poly.map(([lon, lat]) => project(lon, lat))),
+  islands: GEO.islands.map(poly => poly.map(([lon, lat]) => project(lon, lat))),
+  rivers: Object.entries(GEO.rivers).map(([name, pts]) => ({ name, pts: pts.map(([lon, lat]) => project(lon, lat)) })),
+  labels: GEO.labels.map(([text, lon, lat, kind]) => ({ text, kind, p: project(lon, lat) })),
+};
+
+function polyPath(ctx, pts, close) {
+  ctx.beginPath();
+  pts.forEach((q, i) => {
+    const p = toScreen(q);
+    if (i) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y);
+  });
+  if (close) ctx.closePath();
+}
+
+// Faint dot grid in the sea plus a 1-degree graticule with edge labels.
 function drawGrid() {
   mctx.fillStyle = C.grid;
   for (let x = 16; x < W; x += 32) for (let y = 16; y < H; y += 32) mctx.fillRect(x, y, 1.5, 1.5);
+  const tl = toWorld(0, 0), br = toWorld(W, H);
+  const lonAt = x => x / (COS_LAT * KM_PER_DEG) - 3.7, latAt = y => 40.4 - y / KM_PER_DEG;
+  const step = cam.s >= 3 ? 0.5 : 1;
+  mctx.strokeStyle = '#0f1922';
+  mctx.lineWidth = 1;
+  mctx.setLineDash([2, 6]);
+  mctx.font = `9px ${FONT}`;
+  mctx.fillStyle = '#2a3a4a';
+  for (let lon = Math.ceil(lonAt(tl.x) / step) * step; lon <= lonAt(br.x); lon += step) {
+    const x = toScreen(project(lon, 40)).x;
+    line(mctx, { x, y: 0 }, { x, y: H });
+    mctx.textAlign = 'left';
+    mctx.fillText(`${Math.abs(lon).toFixed(step < 1 ? 1 : 0)}°${lon < 0 ? 'O' : 'E'}`, x + 3, 12);
+  }
+  for (let lat = Math.ceil(latAt(br.y) / step) * step; lat <= latAt(tl.y); lat += step) {
+    const y = toScreen(project(-3.7, lat)).y;
+    line(mctx, { x: 0, y }, { x: W, y });
+    mctx.textAlign = 'right';
+    mctx.fillText(`${lat.toFixed(step < 1 ? 1 : 0)}°N`, W - 6, y - 3);
+  }
+  mctx.setLineDash([]);
 }
 
 function drawOutline() {
-  mctx.beginPath();
-  OUTLINE_XY.forEach((p, i) => {
-    const s = toScreen(p);
-    if (i) mctx.lineTo(s.x, s.y); else mctx.moveTo(s.x, s.y);
-  });
-  mctx.closePath();
-  mctx.fillStyle = C.land;
-  mctx.fill();
-  mctx.strokeStyle = C.coast;
+  // neighbouring countries: darker fill, dashed borders
+  for (const poly of GEO_XY.land) {
+    polyPath(mctx, poly, true);
+    mctx.fillStyle = '#090f15';
+    mctx.fill();
+  }
+  // Spain and its islands, with a soft coastal glow
+  const shapes = [OUTLINE_XY, ...GEO_XY.islands];
+  for (const poly of shapes) {
+    polyPath(mctx, poly, true);
+    mctx.strokeStyle = 'rgba(76,160,200,.07)';
+    mctx.lineWidth = 6;
+    mctx.lineJoin = 'round';
+    mctx.stroke();
+    mctx.fillStyle = C.land;
+    mctx.fill();
+    mctx.strokeStyle = '#1f3040';
+    mctx.lineWidth = 1;
+    mctx.stroke();
+  }
+  mctx.setLineDash([5, 3, 1, 3]);
+  mctx.strokeStyle = '#2a3846';
+  for (const border of [PT_BORDER, FR_BORDER]) {
+    polyPath(mctx, border.map(([lon, lat]) => project(lon, lat)));
+    mctx.stroke();
+  }
+  mctx.setLineDash([]);
+  // rivers
+  mctx.strokeStyle = '#14304a';
+  mctx.lineWidth = clamp(cam.s * 0.6, 0.8, 1.6);
+  mctx.lineJoin = 'round';
+  for (const r of GEO_XY.rivers) { polyPath(mctx, r.pts); mctx.stroke(); }
+  if (cam.s >= 2.2) {
+    mctx.font = `italic 9px ${FONT}`;
+    mctx.fillStyle = '#1f4462';
+    mctx.textAlign = 'center';
+    for (const r of GEO_XY.rivers) {
+      const q = toScreen(r.pts[Math.floor(r.pts.length / 2)]);
+      mctx.fillText(r.name.toUpperCase(), q.x, q.y - 4);
+    }
+  }
+  // seas and countries
+  mctx.textAlign = 'center';
+  for (const l of GEO_XY.labels) {
+    const q = toScreen(l.p);
+    if (q.x < -100 || q.x > W + 100 || q.y < -20 || q.y > H + 20) continue;
+    mctx.font = l.kind === 'sea' ? `italic 10px ${FONT}` : `10px ${FONT}`;
+    mctx.fillStyle = l.kind === 'sea' ? '#1d3a52' : '#2c3a48';
+    spaced(mctx, l.text, q.x, q.y, l.kind === 'sea' ? 3 : 2.5);
+  }
+}
+
+// Letter-spaced text centred on x.
+function spaced(ctx, text, x, y, gap) {
+  const w = [...text].reduce((n, ch) => n + ctx.measureText(ch).width + gap, -gap);
+  let cx = x - w / 2;
+  ctx.textAlign = 'left';
+  for (const ch of text) { ctx.fillText(ch, cx, y); cx += ctx.measureText(ch).width + gap; }
+  ctx.textAlign = 'center';
+}
+
+// Scale bar and north arrow in the bottom-right corner.
+function drawScale() {
+  const kmPerPx = 1 / cam.s;
+  const nice = [5, 10, 20, 25, 50, 100, 200, 250, 500].find(k => k / kmPerPx >= 70) || 500;
+  const w = nice / kmPerPx, x0 = W - 18 - w, y0 = H - 58;
+  mctx.strokeStyle = '#5b6b7b';
+  mctx.fillStyle = '#5b6b7b';
   mctx.lineWidth = 1;
-  mctx.stroke();
+  line(mctx, { x: x0, y: y0 }, { x: x0 + w, y: y0 });
+  for (const t of [0, 0.5, 1]) line(mctx, { x: x0 + w * t, y: y0 - (t === 0.5 ? 2 : 4) }, { x: x0 + w * t, y: y0 });
+  mctx.font = `9px ${FONT}`;
+  mctx.textAlign = 'right';
+  mctx.fillText(`${nice} km`, x0 + w, y0 - 6);
+  const nx = W - 22, ny = 30;
+  mctx.beginPath();
+  mctx.moveTo(nx, ny - 9); mctx.lineTo(nx + 4.5, ny + 4); mctx.lineTo(nx, ny + 1); mctx.lineTo(nx - 4.5, ny + 4);
+  mctx.closePath();
+  mctx.fill();
+  mctx.textAlign = 'center';
+  mctx.fillText('N', nx, ny + 15);
 }
 
 function drawLines(pulse) {
@@ -273,6 +381,10 @@ function drawStations(pulse) {
     mctx.textAlign = 'left';
     mctx.fillStyle = manual ? C.bright : C.text;
     const label = detailed ? st.name.toUpperCase() : st.id;
+    mctx.strokeStyle = C.bg;
+    mctx.lineWidth = 3;
+    mctx.lineJoin = 'round';
+    mctx.strokeText(label, p.x + r + 4, p.y - r - 2);
     mctx.fillText(label, p.x + r + 4, p.y - r - 2);
     if (manual) {
       // MANUAL badge after the name
@@ -554,11 +666,12 @@ function drawMap(now) {
   drawLines(pulse);
   drawStations(pulse);
   drawTrains(pulse);
+  drawScale();
   if (running && speed === 0) {
     mctx.fillStyle = C.amber;
     mctx.font = `12px ${FONT}`;
     mctx.textAlign = 'right';
-    mctx.fillText('■ SIMULACIÓN EN PAUSA', W - 14, H - 14);
+    mctx.fillText('■ SIMULACIÓN EN PAUSA', W - 44, 30);
   }
 }
 

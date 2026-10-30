@@ -2,6 +2,13 @@
 
 Todas las versiones del simulador. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [Semantic Versioning](https://semver.org/lang/es/). La versión visible en la interfaz se define en `js/version.js`.
 
+## [0.4.2] - 2026-10-30
+
+### Cambiado
+- **Mapa más detallado**: costa de la península trazada con más precisión, Portugal, Francia y el norte de África en un tono más oscuro con sus fronteras, islas Baleares, ríos principales (Miño, Duero, Ebro, Tajo, Guadiana y Guadalquivir, con nombre al acercarse), nombres de mares y países, retícula de coordenadas, barra de escala y flecha de norte.
+- Los nombres de estación llevan contorno para leerse sobre las vías.
+- El aviso de simulación en pausa pasa a la esquina superior derecha para no tapar la leyenda.
+
 ## [0.4.1] - 2026-10-30
 
 ### Corregido
