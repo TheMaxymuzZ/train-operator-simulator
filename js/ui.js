@@ -94,11 +94,7 @@ function segPoint(g, frac, off) {
 }
 
 function trainPoint(tr) {
-  const seg = tr.seg;
-  const g = segScreen(seg);
-  const fromA = tr.dir === 1 ? tr.pos : seg.len - tr.pos;
-  const off = seg.tracks === 2 ? (tr.dir === 1 ? trackOff() : -trackOff()) : 0;
-  return segPoint(g, fromA / seg.len, off);
+  return trackPoint(tr.seg, tr.dir, tr.dir === 1 ? tr.pos : tr.seg.len - tr.pos);
 }
 
 function line(ctx, a, b) { ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
@@ -330,30 +326,72 @@ function drawStations(pulse) {
   }
 }
 
-// Train glyphs, drawn in local coordinates: x runs along the direction of
-// travel with the nose at 0 and the body towards negative x; y is lateral.
-const TRAIN_SHAPE = {
-  AV:  { len: 19, w: 1.00, cars: 2, nose: 'point' },
-  LD:  { len: 18, w: 1.00, cars: 3, nose: 'round' },
-  MD:  { len: 12, w: 1.00, cars: 2, nose: 'round' },
-  MER: { len: 22, w: 0.90, cars: 5, nose: 'loco' },
+// Train glyphs. Every car is placed on the track on its own: the body follows
+// the line back from the head, through the last station and onto the
+// previous section, so a train turning at a station bends with the track.
+// Cars are listed head first as [kind, length]; lengths are in pixels at
+// scale 1.
+const CONSIST = {
+  AV:  { w: 1.00, cars: [['nose', 7], ['mid', 5.5], ['mid', 5.5], ['tail', 7]] },
+  LD:  { w: 1.00, cars: [['cab', 6], ['mid', 6], ['cabR', 6]] },
+  MD:  { w: 1.00, cars: [['cab', 6], ['cabR', 6]] },
+  MER: { w: 0.85, cars: [['loco', 5.5], ['wagon', 4.2], ['wagon', 4.2], ['wagon', 4.2], ['wagon', 4.2]] },
 };
 
 function trainScale() { return clamp(cam.s / 1.2, 0.75, 1.8); }
 
-function trainFrame(tr) {
-  const g = segScreen(tr.seg);
-  const p = trainPoint(tr);
-  const ux = (g.pb.x - g.pa.x) * tr.dir, uy = (g.pb.y - g.pa.y) * tr.dir;
-  const L = Math.hypot(ux, uy) || 1;
-  const z = trainScale(), sh = TRAIN_SHAPE[tr.type];
-  return { p, ang: Math.atan2(uy / L, ux / L), len: sh.len * z, w: 3.4 * z * sh.w, sh, z };
+// Screen point on the track a train uses on a section, `fromA` km from end a.
+function trackPoint(seg, dir, fromA) {
+  const off = seg.tracks === 2 ? (dir === 1 ? trackOff() : -trackOff()) : 0;
+  return segPoint(segScreen(seg), fromA / seg.len, off);
 }
 
-// Point halfway along the body, used for labels and picking.
-function trainMid(f) {
-  return { x: f.p.x - Math.cos(f.ang) * f.len / 2, y: f.p.y - Math.sin(f.ang) * f.len / 2 };
+// Polyline from the head back along the track: current section to the station
+// it left, then the section it came from. Beyond that the train is still
+// inside its origin station and those cars are not drawn.
+function trainTrack(tr) {
+  const seg = tr.seg;
+  const pts = [trainPoint(tr), trackPoint(seg, tr.dir, tr.dir === 1 ? 0 : seg.len)];
+  if (tr.i > 0) {
+    const prev = segBetween(tr.route[tr.i - 1], tr.route[tr.i]);
+    const pdir = prev.a === tr.route[tr.i - 1] ? 1 : -1;
+    pts.push(trackPoint(prev, pdir, pdir === 1 ? prev.len : 0));
+    pts.push(trackPoint(prev, pdir, pdir === 1 ? 0 : prev.len));
+  }
+  return pts;
 }
+
+// Point `d` pixels behind the head along the polyline (null past its end).
+function alongTrack(pts, d) {
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const L = Math.hypot(b.x - a.x, b.y - a.y);
+    if (d <= L) {
+      const t = L ? d / L : 0;
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+    d -= L;
+  }
+  return null;
+}
+
+function trainFrame(tr) {
+  const z = trainScale(), cs = CONSIST[tr.type];
+  const gap = Math.max(0.9, z * 0.9);
+  const pts = trainTrack(tr);
+  const cars = [];
+  let d = 0;
+  for (const [kind, l] of cs.cars) {
+    const len = l * z;
+    const front = alongTrack(pts, d), back = alongTrack(pts, d + len);
+    if (!front || !back) break;
+    cars.push({ kind, front, back, len, ang: Math.atan2(front.y - back.y, front.x - back.x) });
+    d += len + gap;
+  }
+  return { p: pts[0], pts, cars, len: Math.max(0, d - gap), w: 3.4 * z * cs.w, z };
+}
+
+function trainMid(f) { return alongTrack(f.pts, f.len / 2) || f.p; }
 
 function roundRect(ctx, x, y, w, h, r) {
   r = Math.min(r, w / 2, h / 2);
@@ -365,79 +403,105 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// Body outline; returns the x positions of the joints between cars.
-function trainBodyPath(ctx, f) {
-  const { len, w, sh } = f, h = w / 2;
+// One car in local coordinates: front at x = 0, body towards negative x.
+function carPath(ctx, kind, len, w) {
+  const h = w / 2;
   ctx.beginPath();
-  if (sh.nose === 'point') {
-    // high-speed set: long tapered nose, blunt tail
-    const nose = len * 0.3;
-    ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(-nose * 0.25, -h * 0.9, -nose * 0.6, -h, -nose, -h);
-    ctx.lineTo(-len + h * 0.6, -h);
-    ctx.arcTo(-len, -h, -len, 0, h * 0.6);
-    ctx.arcTo(-len, h, -len + h, h, h * 0.6);
-    ctx.lineTo(-nose, h);
-    ctx.bezierCurveTo(-nose * 0.6, h, -nose * 0.25, h * 0.9, 0, 0);
+  if (kind === 'nose' || kind === 'tail') {
+    // streamlined power car; the tail one is the same shape facing back
+    const s = kind === 'nose' ? 1 : -1, x0 = kind === 'nose' ? 0 : -len;
+    const nose = len * 0.55, r = h * 0.5;
+    ctx.moveTo(x0, 0);
+    ctx.bezierCurveTo(x0 - s * nose * 0.3, -h * 0.9, x0 - s * nose * 0.65, -h, x0 - s * nose, -h);
+    ctx.lineTo(x0 - s * (len - r), -h);
+    ctx.arcTo(x0 - s * len, -h, x0 - s * len, 0, r);
+    ctx.arcTo(x0 - s * len, h, x0 - s * (len - r), h, r);
+    ctx.lineTo(x0 - s * nose, h);
+    ctx.bezierCurveTo(x0 - s * nose * 0.65, h, x0 - s * nose * 0.3, h * 0.9, x0, 0);
     ctx.closePath();
-    return [-len * 0.62];
+  } else if (kind === 'cab' || kind === 'cabR') {
+    // multiple-unit end car: rounded cab on the outer end only
+    const front = kind === 'cab', r = h * 0.95, q = h * 0.3;
+    ctx.moveTo(-len + (front ? q : r), -h);
+    ctx.lineTo(-(front ? r : q), -h);
+    ctx.arcTo(0, -h, 0, 0, front ? r : q);
+    ctx.arcTo(0, h, -len, h, front ? r : q);
+    ctx.lineTo(-len + (front ? q : r), h);
+    ctx.arcTo(-len, h, -len, 0, front ? q : r);
+    ctx.arcTo(-len, -h, 0, -h, front ? q : r);
+    ctx.closePath();
+  } else if (kind === 'loco') {
+    roundRect(ctx, -len, -h * 1.15, len, w * 1.15, h * 0.45);
+  } else if (kind === 'wagon') {
+    ctx.rect(-len, -h * 0.85, len, w * 0.85);
+  } else {
+    roundRect(ctx, -len, -h, len, w, h * 0.3);
   }
-  if (sh.nose === 'loco') {
-    // locomotive plus open wagons, couplings left as gaps
-    const gap = Math.max(1, f.z * 1.1), loco = len * 0.22;
-    const wag = (len - loco - gap * (sh.cars - 1)) / (sh.cars - 1);
-    roundRect(ctx, -loco, -h * 1.15, loco, w * 1.15, h * 0.45);
-    let x = -loco - gap;
-    for (let i = 1; i < sh.cars; i++) { ctx.rect(x - wag, -h * 0.8, wag, w * 0.8); x -= wag + gap; }
-    return [];
+}
+
+function eachCar(f, fn) {
+  for (const c of f.cars) {
+    mctx.save();
+    mctx.translate(c.front.x, c.front.y);
+    mctx.rotate(c.ang);
+    fn(c);
+    mctx.restore();
   }
-  // multiple unit: one rounded body split into cars
-  roundRect(ctx, -len, -h, len, w, h);
-  const car = len / sh.cars;
-  return Array.from({ length: sh.cars - 1 }, (_, i) => -(i + 1) * car);
 }
 
 function drawTrainGlyph(tr, f, pulse) {
   const broken = tr.brokenUntil > SIM.t;
-  const col = TYPES[tr.type].color;
-  mctx.save();
-  mctx.translate(f.p.x, f.p.y);
-  mctx.rotate(f.ang);
-  // dark halo so the glyph reads over the track and occupied blocks
-  const joints = trainBodyPath(mctx, f);
+  // dark halo first, so cars read over the track and the occupied blocks
   mctx.strokeStyle = C.bg;
   mctx.lineWidth = 2.5;
   mctx.lineJoin = 'round';
-  mctx.stroke();
-  mctx.fillStyle = col;
+  eachCar(f, c => { carPath(mctx, c.kind, c.len, f.w); mctx.stroke(); });
+  mctx.fillStyle = TYPES[tr.type].color;
   mctx.globalAlpha = broken ? 0.35 + 0.4 * pulse : 1;
-  mctx.fill();
+  eachCar(f, c => { carPath(mctx, c.kind, c.len, f.w); mctx.fill(); });
   mctx.globalAlpha = 1;
-  mctx.strokeStyle = C.bg;
-  mctx.lineWidth = Math.max(0.8, f.z * 0.8);
-  for (const x of joints) line(mctx, { x, y: -f.w }, { x, y: f.w });
-  // cab window and headlight
-  if (f.z >= 1) {
-    const cx = f.sh.nose === 'point' ? -f.len * 0.2 : f.sh.nose === 'loco' ? -f.len * 0.13 : -f.w * 0.75;
-    mctx.fillStyle = 'rgba(7,11,16,.7)';
-    mctx.fillRect(cx - f.z * 0.7, -f.w * 0.3, f.z * 1.4, f.w * 0.6);
-  }
-  mctx.fillStyle = tr.v > 0.5 ? '#fffbe6' : 'rgba(255,251,230,.35)';
-  mctx.beginPath();
-  mctx.arc(f.sh.nose === 'point' ? -0.8 * f.z : -0.9 * f.z, 0, Math.max(0.8, 0.7 * f.z), 0, Math.PI * 2);
-  mctx.fill();
-  mctx.restore();
+  const head = f.cars[0];
+  if (!head) return;
+  eachCar({ cars: [head] }, c => {
+    // cab window and headlight (dimmed while stopped)
+    if (f.z >= 1) {
+      const cx = c.kind === 'nose' ? -c.len * 0.42 : c.kind === 'loco' ? -c.len * 0.55 : -f.w * 0.75;
+      mctx.fillStyle = 'rgba(7,11,16,.7)';
+      mctx.fillRect(cx - f.z * 0.7, -f.w * 0.3, f.z * 1.4, f.w * 0.6);
+    }
+    mctx.fillStyle = tr.v > 0.5 ? '#fffbe6' : 'rgba(255,251,230,.35)';
+    mctx.beginPath();
+    mctx.arc(-0.9 * f.z, 0, Math.max(0.8, 0.7 * f.z), 0, Math.PI * 2);
+    mctx.fill();
+  });
 }
 
-// Outline around the whole glyph, for selection and alerts.
-function trainRing(f, pad) {
-  mctx.save();
-  mctx.translate(f.p.x, f.p.y);
-  mctx.rotate(f.ang);
-  mctx.beginPath();
-  roundRect(mctx, -f.len - pad, -f.w / 2 - pad, f.len + pad * 2, f.w + pad * 2, f.w / 2 + pad);
+// Outline that follows the whole consist, for selection and alerts.
+function trainRing(f, pad, color) {
+  if (!f.cars.length) return;
+  const pts = [f.cars[0].front];
+  let d = 0;
+  for (let i = 1; i < f.pts.length; i++) {
+    d += Math.hypot(f.pts[i].x - f.pts[i - 1].x, f.pts[i].y - f.pts[i - 1].y);
+    if (d >= f.len) break;
+    pts.push(f.pts[i]);
+  }
+  pts.push(f.cars[f.cars.length - 1].back);
+  const path = () => {
+    mctx.beginPath();
+    pts.forEach((q, i) => (i ? mctx.lineTo(q.x, q.y) : mctx.moveTo(q.x, q.y)));
+  };
+  mctx.lineCap = 'round';
+  mctx.lineJoin = 'round';
+  path();
+  mctx.strokeStyle = color;
+  mctx.lineWidth = f.w + pad * 2 + 2.4;
   mctx.stroke();
-  mctx.restore();
+  path();
+  mctx.strokeStyle = C.bg;
+  mctx.lineWidth = f.w + pad * 2;
+  mctx.stroke();
+  mctx.lineCap = 'butt';
 }
 
 function drawTrains(pulse) {
@@ -447,8 +511,17 @@ function drawTrains(pulse) {
   for (const tr of SIM.trains.values()) {
     if (tr.at !== 'line') continue;
     const f = trainFrame(tr);
-    if (f.p.x < -30 || f.p.y < -30 || f.p.x > W + 30 || f.p.y > H + 30) continue;
+    if (f.p.x < -40 || f.p.y < -40 || f.p.x > W + 40 || f.p.y > H + 40) continue;
     const isSel = selected && selected.kind === 'tr' && selected.id === tr.id;
+    const stuck = tr.waitSince !== null && (tr.needsAction || SIM.t - tr.waitSince > 600);
+    // rings go underneath the cars so they never hide them
+    if (stuck) {
+      mctx.globalAlpha = 0.4 + 0.6 * pulse;
+      trainRing(f, 1.5 + 1.5 * pulse, C.red);
+      mctx.globalAlpha = 1;
+    } else if (isSel) {
+      trainRing(f, 2, C.bright);
+    }
     drawTrainGlyph(tr, f, pulse);
     const m = trainMid(f);
     if (tr.brokenUntil > SIM.t) {
@@ -457,19 +530,6 @@ function drawTrains(pulse) {
       mctx.lineWidth = 1.5;
       line(mctx, { x: m.x - r, y: m.y - r }, { x: m.x + r, y: m.y + r });
       line(mctx, { x: m.x - r, y: m.y + r }, { x: m.x + r, y: m.y - r });
-    }
-    const stuck = tr.waitSince !== null && (tr.needsAction || SIM.t - tr.waitSince > 600);
-    if (stuck) {
-      mctx.strokeStyle = C.red;
-      mctx.globalAlpha = 0.4 + 0.6 * pulse;
-      mctx.lineWidth = 1.5;
-      trainRing(f, 2.5 + 2 * pulse);
-      mctx.globalAlpha = 1;
-    }
-    if (isSel) {
-      mctx.strokeStyle = C.bright;
-      mctx.lineWidth = 1.2;
-      trainRing(f, 3);
     }
     if (labels || isSel) {
       const d = estDelay(tr);
@@ -515,9 +575,10 @@ function pick(sx, sy) {
   for (const tr of SIM.trains.values()) {
     if (tr.at !== 'line') continue;
     const f = trainFrame(tr);
-    const tail = { x: f.p.x - Math.cos(f.ang) * f.len, y: f.p.y - Math.sin(f.ang) * f.len };
-    const d = distToSegment({ x: sx, y: sy }, f.p, tail);
-    if (d < bd) { bd = d; best = { kind: 'tr', id: tr.id }; }
+    for (const c of f.cars.length ? f.cars : [{ front: f.p, back: f.p }]) {
+      const d = distToSegment({ x: sx, y: sy }, c.front, c.back);
+      if (d < bd) { bd = d; best = { kind: 'tr', id: tr.id }; }
+    }
   }
   if (best) return best;
   bd = 16;

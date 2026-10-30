@@ -1,6 +1,6 @@
 # Train Operator Simulator
 
-**CTC·ES v0.4.0** · Simulador de regulación de tráfico ferroviario sobre la red española.
+**CTC·ES v0.4.1** · Simulador de regulación de tráfico ferroviario sobre la red española.
 
 Tomas el puesto de un centro de regulación de circulación: una pantalla oscura de terminal con la red esquemática de España, señales, cantones y trenes de colores. Tu trabajo es que unas 270 circulaciones diarias lleguen a su hora pese a la vía única, los cambios de ancho y las incidencias.
 
