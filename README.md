@@ -1,50 +1,63 @@
 # Train Operator Simulator
 
-Simulador de regulación de tráfico ferroviario sobre la red española. La pantalla es el puesto de mando: fondo oscuro, interfaz de terminal, líneas esquemáticas sobre el mapa de España e iconos de colores por tipo de tren.
+**CTC·ES v0.3.0** · Simulador de regulación de tráfico ferroviario sobre la red española.
 
-## La red
+Tomas el puesto de un centro de regulación de circulación: una pantalla oscura de terminal con la red esquemática de España, señales, cantones y trenes de colores. Tu trabajo es que unas 270 circulaciones diarias lleguen a su hora pese a la vía única, los cambios de ancho y las incidencias.
 
-- 32 estaciones reales (Madrid, Barcelona, Zaragoza, Valencia, Sevilla, Málaga, Bilbao, A Coruña…) unidas por líneas de **doble vía** y de **vía única**.
-- Cada línea está dividida en **cantones** de unos 12 km, protegidos por señales (verde, amarillo, rojo). Un tren nunca entra en un cantón ocupado y frena con antelación según su curva de frenado.
-- En **vía única** solo circulan trenes en un sentido a la vez, y un tren solo entra si tiene vía reservada en la estación siguiente para el cruce.
-- Las estaciones tienen un número limitado de vías. Los trenes que no paran atraviesan la estación por la vía general si la línea siguiente está libre.
+![Puesto de mando](docs/screenshot.png)
 
-## Trenes y horario
+## Características
 
-Unas 270 circulaciones diarias de cuatro tipos, cada uno con su velocidad máxima y su color:
-
-| Tipo | Velocidad | Color |
-| --- | --- | --- |
-| AV · Alta velocidad | 300 km/h | cian |
-| LD · Larga distancia | 200 km/h | violeta |
-| MD · Media distancia | 160 km/h | verde |
-| MER · Mercancías | 100 km/h | ámbar |
-
-Cada tren tiene su horario de paso por cada estación. La puntualidad cuenta llegadas con 5 minutos de retraso o menos.
+- **Red española** con 31 estaciones reales, líneas de doble vía y de vía única, y anchos estándar, ibérico y mixto.
+- **Señalización por cantones** de unos 12 km, con aspectos verde, amarillo y rojo y curva de frenado de cada tren.
+- **Estaciones** con vías con andén (V) y vías de apartado (A), paso por vía general para los trenes que no paran y cambiadores de ancho.
+- **Horario** con cuatro tipos de tren: alta velocidad, larga distancia (ancho variable), media distancia y mercancías.
+- **Mando AUTO o MANUAL** por estación: asignación de vías, orden de paso, orden de salida y retención de trenes.
+- **Incidencias**: limitaciones temporales de velocidad, fallos de circuito de vía con orden de rebase, averías de tren y atención a viajeros.
+- **Gráfico de marcha** por corredor, con el horario previsto y la marcha real.
+- **Turnos** de mañana, tarde o jornada completa, e **informe de fin de turno** descargable.
 
 ## Cómo jugar
 
-- **Arrastra** para mover el mapa, **rueda** o pellizco para el zoom, o usa los botones de sector. Al acercarte aparecen los cantones y las señales.
-- **Clic en una estación** para ver sus vías, los trenes que se acercan y los próximos orígenes.
-- Cada estación puede estar en mando **AUTO** o **MANUAL**:
-  - En **AUTO** el sistema asigna vías por orden de llegada, da salida en cuanto la línea está libre y hace que los trenes lentos cedan el paso a los rápidos. Las vías impares se usan para los trenes que se alejan de Madrid y las pares para los que se acercan.
-  - En **MANUAL** tú asignas la vía de entrada (`V1`, `V2`…), das **PASO** a los trenes que no paran y la orden de **SALIDA** a los que están en el andén.
-- **RETENER** detiene un tren en su próxima estación hasta que lo liberes: sirve para dejar adelantar o para ordenar los cruces en vía única.
-- La columna **AVISOS** y los círculos rojos en el mapa marcan trenes que esperan una orden o llevan más de 10 minutos parados.
-- El **gráfico de marcha** muestra, por corredor, el horario previsto (discontinuo) y la marcha real (continua).
-- Velocidad de simulación: pausa (espacio), x1, x10, x30 y x60.
+1. Elige turno y si quieres incidencias, y pulsa **TOMAR EL TURNO**.
+2. Vigila los **avisos** (círculos rojos en el mapa y lista del panel): trenes que esperan una orden o llevan más de 10 minutos parados.
+3. Pulsa una **estación** para ver sus vías y los trenes que llegan; pásala a **MANUAL** si quieres decidir tú vías y salidas.
+4. **Retén** trenes lentos para que adelanten los rápidos y ordena los cruces en vía única.
+5. Ante un **fallo de circuito de vía**, autoriza el **rebase** para que los trenes pasen a 30 km/h.
+6. Al terminar el turno revisa el **informe**: puntualidad (llegadas con 5 minutos de retraso o menos), retraso medio y calificación.
+
+El manual completo está dentro del juego (tecla `H`).
+
+### Atajos de teclado
+
+| Tecla | Acción |
+| --- | --- |
+| Espacio | Pausa / reanudar |
+| `+` `-` `0` | Ampliar, reducir, ver toda España |
+| `I` | Informe del turno |
+| `H` | Manual de operación |
+| `Esc` | Cerrar ventana o quitar selección |
 
 ## Ejecutar en local
 
-No hay dependencias ni compilación: abre `index.html` en el navegador.
+No hay dependencias ni compilación: abre `index.html` en un navegador moderno.
 
 ## Publicar en GitHub Pages
 
-En el repositorio, ve a **Settings → Pages**, elige **Deploy from a branch**, rama `main` y carpeta `/ (root)`. El juego quedará en `https://<usuario>.github.io/train-operator-simulator/`.
+En el repositorio, **Settings → Pages → Deploy from a branch**, rama `main`, carpeta `/ (root)`. El simulador quedará en `https://<usuario>.github.io/train-operator-simulator/`.
 
 ## Estructura
 
-- `index.html` y `style.css`: interfaz del puesto de mando.
-- `js/data.js`: estaciones, líneas, tipos de tren, plan de servicios y corredores.
-- `js/sim.js`: simulación (cantones, frenado, reservas de vía, vía única, horario, regulación automática).
-- `js/ui.js`: mapa, cámara, panel lateral, gráfico de marcha y controles.
+| Archivo | Contenido |
+| --- | --- |
+| `index.html`, `style.css` | Interfaz del puesto de mando |
+| `js/data.js` | Estaciones, líneas, anchos, tipos de tren, plan de servicios y corredores |
+| `js/version.js` | Nombre y versión de la aplicación |
+| `js/sim.js` | Simulación: cantones, frenado, reservas de vía, vía única, ancho de vía, incidencias, horario y turnos |
+| `js/ui.js` | Mapa, cámara y entrada |
+| `js/panels.js` | Paneles de estación, trayecto y tren; gráfico de marcha; inicio, manual e informe |
+| `js/main.js` | Arranque |
+
+## Versiones
+
+Consulta [CHANGELOG.md](CHANGELOG.md). Para publicar una versión nueva, actualiza `js/version.js` y añade su entrada al changelog.
