@@ -10,6 +10,7 @@ Todas las versiones del simulador. El formato sigue [Keep a Changelog](https://k
 
 ### Cambiado
 - Los AV llevan cabeza motriz aerodinámica en los dos extremos.
+- El panel del tren muestra la velocidad actual y la máxima permitida, la próxima parada con su hora prevista y estimada, y el tramo con nombres de estación.
 
 ## [0.4.0] - 2026-10-30
 
