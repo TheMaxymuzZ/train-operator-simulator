@@ -1,6 +1,6 @@
 # Train Operator Simulator
 
-**CTC·ES v0.4.2** · Simulador de regulación de tráfico ferroviario sobre la red española.
+**CTC·ES v0.5.0** · Simulador de regulación de tráfico ferroviario sobre la red española.
 
 Tomas el puesto de un centro de regulación de circulación: una pantalla oscura de terminal con la red esquemática de España, señales, cantones y trenes de colores. Tu trabajo es que unas 270 circulaciones diarias lleguen a su hora pese a la vía única, los cambios de ancho y las incidencias.
 
@@ -41,6 +41,11 @@ El manual completo está dentro del juego (tecla `H`).
 | `H` | Manual de operación |
 | `Esc` | Cerrar ventana o quitar selección |
 
+## Jugar sin conexión
+
+- **Desde la web**: tras la primera visita el simulador queda guardado en el navegador y funciona sin conexión. El pie de la pantalla de acceso indica «disponible sin conexión». En el móvil o en Chrome/Edge se puede **instalar como aplicación** (menú del navegador → *Instalar* o *Añadir a pantalla de inicio*).
+- **En local**: descarga el repositorio y abre `index.html`; no necesita internet ni servidor.
+
 ## Ejecutar en local
 
 No hay dependencias ni compilación: abre `index.html` en un navegador moderno.
@@ -60,7 +65,8 @@ En el repositorio, **Settings → Pages → Deploy from a branch**, rama `main`,
 | `js/ui.js` | Mapa, cámara y entrada |
 | `js/panels.js` | Paneles de estación, trayecto y tren; gráfico de marcha; inicio, manual e informe |
 | `js/login.js` | Pantalla de título, acceso de operador y secuencia de carga |
-| `js/main.js` | Arranque |
+| `js/main.js` | Arranque y registro del modo sin conexión |
+| `sw.js`, `manifest.webmanifest`, `icons/` | Modo sin conexión e instalación como aplicación |
 
 ## Versiones
 
