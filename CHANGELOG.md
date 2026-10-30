@@ -2,6 +2,13 @@
 
 Todas las versiones del simulador. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [Semantic Versioning](https://semver.org/lang/es/). La versión visible en la interfaz se define en `js/version.js`.
 
+## [0.5.0] - 2026-10-30
+
+### Añadido
+- **Juego sin conexión**: un service worker guarda todos los archivos tras la primera visita, así que el simulador funciona sin internet. Al haber conexión siempre carga la última versión, y cada versión sustituye a la copia anterior.
+- **Instalable como aplicación** (PWA) en móvil y escritorio, con manifiesto e iconos propios.
+- La pantalla de acceso indica cuándo el simulador está disponible sin conexión.
+
 ## [0.4.2] - 2026-10-30
 
 ### Cambiado

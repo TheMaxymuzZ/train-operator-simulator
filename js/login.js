@@ -8,6 +8,13 @@
 
 const OPERATOR = { name: '', post: 'ESPAÑA' };
 const OP_KEY = 'ctc-es.operator';
+let OFFLINE_READY = false;
+
+// Footer note once the service worker has cached the game.
+function markOffline() {
+  const el = $('lg-offline');
+  if (el && OFFLINE_READY) { el.textContent = '● disponible sin conexión'; el.className = 'ok'; }
+}
 
 const POSTS = {
   'ESPAÑA':   'Mando central · toda la red',
@@ -160,7 +167,8 @@ function formStage(error) {
       <button class="primary" type="submit">ACCEDER ▸</button>
       <div class="lg-note">Acceso simulado: vale cualquier clave y no se envía ningún dato.</div>
     </form>
-    <div class="lg-foot"><span>v${APP.version}</span><span>${APP.date}</span></div>`;
+    <div class="lg-foot"><span>v${APP.version}</span><span id="lg-offline"></span><span>${APP.date}</span></div>`;
+  markOffline();
   const name = $('lg-name');
   (OPERATOR.name ? $('lg-pass') : name).focus();
   $('lg-form').addEventListener('submit', e => {
