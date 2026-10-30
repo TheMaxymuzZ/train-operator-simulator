@@ -1,10 +1,12 @@
 # Train Operator Simulator
 
-**CTC·ES v0.3.0** · Simulador de regulación de tráfico ferroviario sobre la red española.
+**CTC·ES v0.4.0** · Simulador de regulación de tráfico ferroviario sobre la red española.
 
 Tomas el puesto de un centro de regulación de circulación: una pantalla oscura de terminal con la red esquemática de España, señales, cantones y trenes de colores. Tu trabajo es que unas 270 circulaciones diarias lleguen a su hora pese a la vía única, los cambios de ancho y las incidencias.
 
 ![Puesto de mando](docs/screenshot.png)
+
+![Pantalla de acceso](docs/login.png)
 
 ## Características
 
@@ -19,12 +21,13 @@ Tomas el puesto de un centro de regulación de circulación: una pantalla oscura
 
 ## Cómo jugar
 
-1. Elige turno y si quieres incidencias, y pulsa **TOMAR EL TURNO**.
-2. Vigila los **avisos** (círculos rojos en el mapa y lista del panel): trenes que esperan una orden o llevan más de 10 minutos parados.
-3. Pulsa una **estación** para ver sus vías y los trenes que llegan; pásala a **MANUAL** si quieres decidir tú vías y salidas.
-4. **Retén** trenes lentos para que adelanten los rápidos y ordena los cruces en vía única.
-5. Ante un **fallo de circuito de vía**, autoriza el **rebase** para que los trenes pasen a 30 km/h.
-6. Al terminar el turno revisa el **informe**: puntualidad (llegadas con 5 minutos de retraso o menos), retraso medio y calificación.
+1. Identifícate en la pantalla de acceso con tu ID de operador, cualquier clave y el puesto que quieras (el acceso es simulado).
+2. Elige turno y si quieres incidencias, y pulsa **TOMAR EL TURNO**.
+3. Vigila los **avisos** (círculos rojos en el mapa y lista del panel): trenes que esperan una orden o llevan más de 10 minutos parados.
+4. Pulsa una **estación** para ver sus vías y los trenes que llegan; pásala a **MANUAL** si quieres decidir tú vías y salidas.
+5. **Retén** trenes lentos para que adelanten los rápidos y ordena los cruces en vía única.
+6. Ante un **fallo de circuito de vía**, autoriza el **rebase** para que los trenes pasen a 30 km/h.
+7. Al terminar el turno revisa el **informe**: puntualidad (llegadas con 5 minutos de retraso o menos), retraso medio y calificación.
 
 El manual completo está dentro del juego (tecla `H`).
 
@@ -56,6 +59,7 @@ En el repositorio, **Settings → Pages → Deploy from a branch**, rama `main`,
 | `js/sim.js` | Simulación: cantones, frenado, reservas de vía, vía única, ancho de vía, incidencias, horario y turnos |
 | `js/ui.js` | Mapa, cámara y entrada |
 | `js/panels.js` | Paneles de estación, trayecto y tren; gráfico de marcha; inicio, manual e informe |
+| `js/login.js` | Pantalla de título, acceso de operador y secuencia de carga |
 | `js/main.js` | Arranque |
 
 ## Versiones
