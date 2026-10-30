@@ -4,6 +4,6 @@
 const APP = {
   name: 'Train Operator Simulator',
   short: 'CTC·ES',
-  version: '0.4.0',
+  version: '0.4.1',
   date: '2026-10-30',
 };

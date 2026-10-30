@@ -2,6 +2,16 @@
 
 Todas las versiones del simulador. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [Semantic Versioning](https://semver.org/lang/es/). La versión visible en la interfaz se define en `js/version.js`.
 
+## [0.4.1] - 2026-10-30
+
+### Corregido
+- **Los trenes siguen el trazado de la vía.** Cada coche y cada vagón se coloca sobre la vía por separado, así que la composición se dobla al pasar por una estación donde cambia la dirección de la línea, en lugar de salirse de la vía. Los coches que aún no han salido de la estación de origen no se dibujan.
+- El marco de selección y el aviso rojo siguen toda la composición.
+
+### Cambiado
+- Los AV llevan cabeza motriz aerodinámica en los dos extremos.
+- El panel del tren muestra la velocidad actual y la máxima permitida, la próxima parada con su hora prevista y estimada, y el tramo con nombres de estación.
+
 ## [0.4.0] - 2026-10-30
 
 ### Añadido

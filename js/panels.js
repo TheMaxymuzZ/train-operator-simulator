@@ -154,12 +154,27 @@ function detailSegment(seg) {
   return h;
 }
 
+function speedText(tr) {
+  if (tr.at !== 'line') return 'parado en estación';
+  const limit = Math.min(segV(tr.seg), TYPES[tr.type].vmax);
+  return `<b>${Math.round(tr.v)} km/h</b> <span class="dim">· máx. ${limit} km/h</span>`;
+}
+
+// Next scheduled stop with its planned and estimated arrival.
+function nextStopRow(tr, d) {
+  let i = tr.i + 1;
+  while (i < tr.route.length - 1 && !isStop(tr, i)) i++;
+  if (i >= tr.route.length) return '';
+  const arr = tr.sched[i].arr;
+  return `<tr><td>Próxima parada</td><td>${esc(ST[tr.route[i]].name)} · ${fmt.time(arr)} <span class="${delayCls(d)}">(est. ${fmt.time(arr + Math.max(0, d))})</span></td></tr>`;
+}
+
 function detailTrain(tr) {
   const d = estDelay(tr);
   const origin = ST[tr.route[0]].name, dest = ST[tr.route[tr.route.length - 1]].name;
   let where;
   if (tr.at === 'st') where = `${ST[tr.route[tr.i]].name}, vía ${ST[tr.route[tr.i]].plats[tr.plat].label}`;
-  else where = `${tr.route[tr.i]} → ${nextStation(tr)}, km ${Math.round(tr.pos)} de ${Math.round(tr.seg.len)} (${tr.seg.tracks === 1 ? 'vía única' : 'doble vía'})`;
+  else where = `${ST[tr.route[tr.i]].name} → ${ST[nextStation(tr)].name}, km ${Math.round(tr.pos)} de ${Math.round(tr.seg.len)} (${tr.seg.tracks === 1 ? 'vía única' : 'doble vía'})`;
   const atManual = tr.at === 'st' && ST[tr.route[tr.i]].mode === 'MANUAL' && tr.i < tr.route.length - 1;
   const gauge = tr.changes.size
     ? `${GAUGES[tr.axle].name} · cambia en ${[...tr.changes].map(s => ST[s].name).join(', ')}`
@@ -168,6 +183,8 @@ function detailTrain(tr) {
     <div class="d-sub">${TYPES[tr.type].name} · ${esc(origin)} → ${esc(dest)}</div>
     <div class="d-row"><span class="grow">${esc(where)}<br>${trainStatus(tr)}</span></div>
     <table class="kv">
+      <tr><td>Velocidad</td><td>${speedText(tr)}</td></tr>
+      ${nextStopRow(tr, d)}
       <tr><td>Retraso estimado</td><td class="${delayCls(d)}">${fmt.delay(d)}</td></tr>
       <tr><td>Ancho</td><td>${gauge}</td></tr>
       ${tr.brokenUntil > SIM.t ? `<tr><td class="alert">Avería</td><td class="alert">previsión ${fmt.time(tr.brokenUntil)}</td></tr>` : ''}
