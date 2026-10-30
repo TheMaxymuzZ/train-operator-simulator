@@ -7,5 +7,5 @@ ro.observe(chartEl);
 window.addEventListener('resize', resize);
 resize();
 $('ver-tag').textContent = 'v' + APP.version;
-showStart();
+showLogin();
 requestAnimationFrame(frame);

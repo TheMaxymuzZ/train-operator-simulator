@@ -10,6 +10,10 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div id="login" class="login">
+    <canvas id="login-bg" aria-hidden="true"></canvas>
+    <div class="login-card" id="login-card"></div>
+  </div>
   <div class="app">
     <header class="bar">
       <div class="brand">
@@ -37,6 +41,10 @@
         </div>
         <button id="btn-report" title="Informe del turno (I)">INFORME</button>
         <button id="btn-help" title="Manual de operación (H)">?</button>
+        <div class="op-chip" id="op-chip" hidden>
+          <span class="dim">OP</span><b id="op-name"></b>
+          <button id="op-logout" title="Cerrar sesión">SALIR</button>
+        </div>
       </div>
     </header>
 
@@ -45,15 +53,18 @@
         <canvas id="map" aria-label="Mapa de la red ferroviaria"></canvas>
         <div class="sectors" id="sectors"></div>
         <div class="legend">
-          <span><i style="background:#5fd4ff"></i>AV</span>
-          <span><i style="background:#c792ff"></i>LD</span>
-          <span><i style="background:#4cf3a0"></i>MD</span>
-          <span><i style="background:#ffb547"></i>MER</span>
+          <span><svg viewBox="0 0 22 10" width="22" height="10" aria-hidden="true"><path d="M21 4.6Q18 1.6 15 1.6V8.4Q18 8.4 21 5.4Z" fill="#5fd4ff"/><rect x="2" y="1.6" width="12" height="6.8" rx="2" fill="#5fd4ff"/></svg>AV</span>
+          <span><svg viewBox="0 0 22 10" width="22" height="10" aria-hidden="true"><rect x="1" y="1.6" width="6" height="6.8" rx="3" fill="#c792ff"/><rect x="8" y="1.6" width="6" height="6.8" rx="1" fill="#c792ff"/><rect x="15" y="1.6" width="6" height="6.8" rx="3" fill="#c792ff"/></svg>LD</span>
+          <span><svg viewBox="0 0 17 10" width="17" height="10" aria-hidden="true"><rect x="1" y="1.8" width="7" height="6.4" rx="3" fill="#4cf3a0"/><rect x="9" y="1.8" width="7" height="6.4" rx="3" fill="#4cf3a0"/></svg>MD</span>
+          <span><svg viewBox="0 0 22 10" width="22" height="10" aria-hidden="true"><rect x="16" y="1" width="5" height="8" rx="1.5" fill="#ffb547"/><rect x="1" y="2.2" width="4" height="5.6" fill="#ffb547"/><rect x="6" y="2.2" width="4" height="5.6" fill="#ffb547"/><rect x="11" y="2.2" width="4" height="5.6" fill="#ffb547"/></svg>MER</span>
+          <span><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" rx="2" fill="#0c1218" stroke="#8aa1b6" stroke-width="1.2"/><rect x="4.2" y="4.2" width="1.6" height="1.6" fill="#4f6476"/></svg>estación</span>
+          <span><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7" rx="2" fill="#0c1218" stroke="#ffb547" stroke-width="1.2"/><rect x="3.4" y="3.4" width="3.2" height="3.2" fill="#ffb547"/></svg>manual</span>
+          <span><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M5 .8L9.2 5 5 9.2.8 5Z" fill="#0c1218" stroke="#c792ff" stroke-width="1.1"/><path d="M3.3 4H6.7M3.8 6H6.2" stroke="#c792ff"/></svg>cambiador</span>
+          <span><svg viewBox="0 0 12 10" width="12" height="10" aria-hidden="true"><path d="M0 8H12M4 8V4" stroke="#3a4b5c"/><circle cx="4" cy="3" r="2.4" fill="#070b10"/><circle cx="4" cy="3" r="1.7" fill="#4cf3a0"/><circle cx="9" cy="3" r="1.7" fill="#ffb547"/></svg>señal</span>
           <span><i class="ln" style="background:#2f5068"></i>estándar</span>
           <span><i class="ln" style="background:#5d5a52"></i>ibérico</span>
           <span><i class="ln mix"></i>mixto</span>
           <span><i class="dbl"></i>doble vía</span>
-          <span><i class="chg"></i>cambiador</span>
           <span><i class="ltv"></i>LTV</span>
         </div>
 
@@ -84,6 +95,7 @@
   <script src="js/sim.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/panels.js"></script>
+  <script src="js/login.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

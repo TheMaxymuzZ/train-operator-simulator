@@ -2,6 +2,20 @@
 
 Todas las versiones del simulador. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y la numeración, [Semantic Versioning](https://semver.org/lang/es/). La versión visible en la interfaz se define en `js/version.js`.
 
+## [0.4.0] - 2026-10-30
+
+### Añadido
+- **Pantalla de título con acceso de operador**: ID de operador, clave y puesto de mando, seguidos de una secuencia de carga del puesto (enclavamientos, cantones, señales y horario) con barra de progreso. El acceso es simulado: vale cualquier clave y no se envía ningún dato; solo se recuerda el ID en el navegador.
+- El **puesto** elegido (mando central o uno de los seis sectores) fija la vista inicial del mapa.
+- Operador en la cabecera, con botón para cerrar sesión, y en el informe de fin de turno.
+
+### Cambiado
+- **Trenes** dibujados como composiciones orientadas en el sentido de la marcha, con forma propia por tipo: AV con morro aerodinámico, LD de tres coches, MD de dos y mercancías con locomotora y vagones. Llevan luz de cabeza (apagada cuando el tren está parado) y la etiqueta tiene fondo para leerse sobre la vía.
+- **Estaciones** con nodo de esquinas redondeadas, doble marco en las de 6 o más andenes, núcleo y marca M en ámbar en mando manual y línea de andén bajo las vías con andén.
+- **Cambiadores** con los dos anchos dibujados dentro del rombo, que parpadea mientras cambia un tren.
+- **Señales** con mástil y foco.
+- **Leyenda** con los mismos iconos que el mapa.
+
 ## [0.3.0] - 2026-10-30
 
 ### Añadido

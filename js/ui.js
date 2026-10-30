@@ -194,14 +194,24 @@ function drawLines(pulse) {
 
 function drawSignals(seg, g, off) {
   for (const dir of [1, -1]) {
-    const side = (seg.tracks === 2 ? off : 0) + 5;
+    const side = (seg.tracks === 2 ? off : 0) + 3;
     for (let r = 1; r < seg.n; r++) {
       const fromA = dir === 1 ? r * seg.blen : seg.len - r * seg.blen;
-      const p = segPoint(g, fromA / seg.len, dir === 1 ? side : -side);
+      const s = dir === 1 ? 1 : -1;
+      const base = segPoint(g, fromA / seg.len, s * side);
+      const lamp = segPoint(g, fromA / seg.len, s * (side + 4));
       const a = aspect(seg, dir, r);
-      mctx.fillStyle = a === 'V' ? C.sigV : a === 'A' ? C.sigA : C.sigR;
+      // mast from the track side out to the lamp
+      mctx.strokeStyle = '#3a4b5c';
+      mctx.lineWidth = 1;
+      line(mctx, base, lamp);
       mctx.beginPath();
-      mctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      mctx.arc(lamp.x, lamp.y, 2.4, 0, Math.PI * 2);
+      mctx.fillStyle = C.bg;
+      mctx.fill();
+      mctx.beginPath();
+      mctx.arc(lamp.x, lamp.y, 1.7, 0, Math.PI * 2);
+      mctx.fillStyle = a === 'V' ? C.sigV : a === 'A' ? C.sigA : C.sigR;
       mctx.fill();
     }
   }
@@ -224,30 +234,61 @@ function drawStations(pulse) {
     const p = toScreen(st);
     if (p.x < -80 || p.y < -40 || p.x > W + 80 || p.y > H + 40) continue;
     const manual = st.mode === 'MANUAL';
-    mctx.fillStyle = C.bg;
-    mctx.fillRect(p.x - 4, p.y - 4, 8, 8);
-    mctx.strokeStyle = manual ? C.bright : '#7d93a8';
-    mctx.lineWidth = manual ? 2 : 1.2;
-    mctx.strokeRect(p.x - 4, p.y - 4, 8, 8);
-    if (st.changer) {
-      // gauge changer: small diamond to the left of the station
-      const cx = p.x - 10, busy = st.changerUntil > SIM.t;
+    const hub = st.plats.filter(pl => pl.anden).length >= 6;
+    const r = hub ? 5 : 4;
+    // station node: rounded square, double frame for main hubs, filled core in MANUAL
+    mctx.beginPath();
+    roundRect(mctx, p.x - r, p.y - r, r * 2, r * 2, 2);
+    mctx.fillStyle = '#0c1218';
+    mctx.fill();
+    mctx.strokeStyle = manual ? C.amber : '#8aa1b6';
+    mctx.lineWidth = 1.3;
+    mctx.stroke();
+    if (hub) {
       mctx.beginPath();
-      mctx.moveTo(cx, p.y - 3.5); mctx.lineTo(cx + 3.5, p.y); mctx.lineTo(cx, p.y + 3.5); mctx.lineTo(cx - 3.5, p.y);
+      roundRect(mctx, p.x - r - 2.5, p.y - r - 2.5, r * 2 + 5, r * 2 + 5, 3);
+      mctx.strokeStyle = manual ? 'rgba(255,181,71,.45)' : '#34495c';
+      mctx.lineWidth = 1;
+      mctx.stroke();
+    }
+    mctx.fillStyle = manual ? C.amber : '#4f6476';
+    const core = manual ? r - 1.6 : 1.6;
+    mctx.fillRect(p.x - core, p.y - core, core * 2, core * 2);
+    if (st.changer) {
+      // gauge changer: diamond with the two rail gauges inside
+      const cx = p.x - r - 8, busy = st.changerUntil > SIM.t;
+      mctx.beginPath();
+      mctx.moveTo(cx, p.y - 4.5); mctx.lineTo(cx + 4.5, p.y); mctx.lineTo(cx, p.y + 4.5); mctx.lineTo(cx - 4.5, p.y);
       mctx.closePath();
+      mctx.fillStyle = busy ? C.violet : '#0c1218';
+      mctx.globalAlpha = busy ? 0.55 + 0.45 * pulse : 1;
+      mctx.fill();
+      mctx.globalAlpha = 1;
       mctx.strokeStyle = C.violet;
       mctx.lineWidth = 1.2;
-      if (busy) { mctx.fillStyle = C.violet; mctx.fill(); }
       mctx.stroke();
+      mctx.strokeStyle = busy ? C.bg : C.violet;
+      mctx.lineWidth = 1;
+      line(mctx, { x: cx - 1.8, y: p.y - 1.2 }, { x: cx + 1.8, y: p.y - 1.2 });
+      line(mctx, { x: cx - 1.2, y: p.y + 1.2 }, { x: cx + 1.2, y: p.y + 1.2 });
     }
 
     mctx.font = `${detailed ? 11 : 10}px ${FONT}`;
     mctx.textAlign = 'left';
     mctx.fillStyle = manual ? C.bright : C.text;
-    const label = (detailed ? st.name.toUpperCase() : st.id) + (manual ? ' ·M' : '');
-    mctx.fillText(label, p.x + 8, p.y - 6);
+    const label = detailed ? st.name.toUpperCase() : st.id;
+    mctx.fillText(label, p.x + r + 4, p.y - r - 2);
+    if (manual) {
+      // MANUAL badge after the name
+      const bx = p.x + r + 8 + mctx.measureText(label).width;
+      mctx.font = `bold 8px ${FONT}`;
+      mctx.fillStyle = C.amber;
+      mctx.fillRect(bx, p.y - r - 10, 11, 9);
+      mctx.fillStyle = C.bg;
+      mctx.fillText('M', bx + 3, p.y - r - 3);
+    }
 
-    let x = p.x + 8;
+    let x = p.x + r + 4;
     st.plats.forEach(pl => {
       const h = pl.anden ? cell : Math.max(2, cell / 2);
       const y = p.y - 1 + (cell - h);
@@ -261,6 +302,11 @@ function drawStations(pulse) {
         mctx.strokeStyle = res ? TYPES[res.type].color : '#2a3644';
         mctx.lineWidth = 1;
         mctx.strokeRect(x + 0.5, y + 0.5, cell - 1, h - 1);
+      }
+      if (pl.anden) {
+        // platform edge under tracks with a platform
+        mctx.fillStyle = '#3a4b5c';
+        mctx.fillRect(x, y + h + 1, cell, 1);
       }
       x += cell + 2;
     });
@@ -284,47 +330,157 @@ function drawStations(pulse) {
   }
 }
 
+// Train glyphs, drawn in local coordinates: x runs along the direction of
+// travel with the nose at 0 and the body towards negative x; y is lateral.
+const TRAIN_SHAPE = {
+  AV:  { len: 19, w: 1.00, cars: 2, nose: 'point' },
+  LD:  { len: 18, w: 1.00, cars: 3, nose: 'round' },
+  MD:  { len: 12, w: 1.00, cars: 2, nose: 'round' },
+  MER: { len: 22, w: 0.90, cars: 5, nose: 'loco' },
+};
+
+function trainScale() { return clamp(cam.s / 1.2, 0.75, 1.8); }
+
+function trainFrame(tr) {
+  const g = segScreen(tr.seg);
+  const p = trainPoint(tr);
+  const ux = (g.pb.x - g.pa.x) * tr.dir, uy = (g.pb.y - g.pa.y) * tr.dir;
+  const L = Math.hypot(ux, uy) || 1;
+  const z = trainScale(), sh = TRAIN_SHAPE[tr.type];
+  return { p, ang: Math.atan2(uy / L, ux / L), len: sh.len * z, w: 3.4 * z * sh.w, sh, z };
+}
+
+// Point halfway along the body, used for labels and picking.
+function trainMid(f) {
+  return { x: f.p.x - Math.cos(f.ang) * f.len / 2, y: f.p.y - Math.sin(f.ang) * f.len / 2 };
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Body outline; returns the x positions of the joints between cars.
+function trainBodyPath(ctx, f) {
+  const { len, w, sh } = f, h = w / 2;
+  ctx.beginPath();
+  if (sh.nose === 'point') {
+    // high-speed set: long tapered nose, blunt tail
+    const nose = len * 0.3;
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-nose * 0.25, -h * 0.9, -nose * 0.6, -h, -nose, -h);
+    ctx.lineTo(-len + h * 0.6, -h);
+    ctx.arcTo(-len, -h, -len, 0, h * 0.6);
+    ctx.arcTo(-len, h, -len + h, h, h * 0.6);
+    ctx.lineTo(-nose, h);
+    ctx.bezierCurveTo(-nose * 0.6, h, -nose * 0.25, h * 0.9, 0, 0);
+    ctx.closePath();
+    return [-len * 0.62];
+  }
+  if (sh.nose === 'loco') {
+    // locomotive plus open wagons, couplings left as gaps
+    const gap = Math.max(1, f.z * 1.1), loco = len * 0.22;
+    const wag = (len - loco - gap * (sh.cars - 1)) / (sh.cars - 1);
+    roundRect(ctx, -loco, -h * 1.15, loco, w * 1.15, h * 0.45);
+    let x = -loco - gap;
+    for (let i = 1; i < sh.cars; i++) { ctx.rect(x - wag, -h * 0.8, wag, w * 0.8); x -= wag + gap; }
+    return [];
+  }
+  // multiple unit: one rounded body split into cars
+  roundRect(ctx, -len, -h, len, w, h);
+  const car = len / sh.cars;
+  return Array.from({ length: sh.cars - 1 }, (_, i) => -(i + 1) * car);
+}
+
+function drawTrainGlyph(tr, f, pulse) {
+  const broken = tr.brokenUntil > SIM.t;
+  const col = TYPES[tr.type].color;
+  mctx.save();
+  mctx.translate(f.p.x, f.p.y);
+  mctx.rotate(f.ang);
+  // dark halo so the glyph reads over the track and occupied blocks
+  const joints = trainBodyPath(mctx, f);
+  mctx.strokeStyle = C.bg;
+  mctx.lineWidth = 2.5;
+  mctx.lineJoin = 'round';
+  mctx.stroke();
+  mctx.fillStyle = col;
+  mctx.globalAlpha = broken ? 0.35 + 0.4 * pulse : 1;
+  mctx.fill();
+  mctx.globalAlpha = 1;
+  mctx.strokeStyle = C.bg;
+  mctx.lineWidth = Math.max(0.8, f.z * 0.8);
+  for (const x of joints) line(mctx, { x, y: -f.w }, { x, y: f.w });
+  // cab window and headlight
+  if (f.z >= 1) {
+    const cx = f.sh.nose === 'point' ? -f.len * 0.2 : f.sh.nose === 'loco' ? -f.len * 0.13 : -f.w * 0.75;
+    mctx.fillStyle = 'rgba(7,11,16,.7)';
+    mctx.fillRect(cx - f.z * 0.7, -f.w * 0.3, f.z * 1.4, f.w * 0.6);
+  }
+  mctx.fillStyle = tr.v > 0.5 ? '#fffbe6' : 'rgba(255,251,230,.35)';
+  mctx.beginPath();
+  mctx.arc(f.sh.nose === 'point' ? -0.8 * f.z : -0.9 * f.z, 0, Math.max(0.8, 0.7 * f.z), 0, Math.PI * 2);
+  mctx.fill();
+  mctx.restore();
+}
+
+// Outline around the whole glyph, for selection and alerts.
+function trainRing(f, pad) {
+  mctx.save();
+  mctx.translate(f.p.x, f.p.y);
+  mctx.rotate(f.ang);
+  mctx.beginPath();
+  roundRect(mctx, -f.len - pad, -f.w / 2 - pad, f.len + pad * 2, f.w + pad * 2, f.w / 2 + pad);
+  mctx.stroke();
+  mctx.restore();
+}
+
 function drawTrains(pulse) {
-  const r = clamp(cam.s * 1.4, 2.5, 5);
   const labels = cam.s >= 2.4;
   mctx.font = `10px ${FONT}`;
   mctx.textAlign = 'left';
   for (const tr of SIM.trains.values()) {
     if (tr.at !== 'line') continue;
-    const p = trainPoint(tr);
-    if (p.x < -20 || p.y < -20 || p.x > W + 20 || p.y > H + 20) continue;
+    const f = trainFrame(tr);
+    if (f.p.x < -30 || f.p.y < -30 || f.p.x > W + 30 || f.p.y > H + 30) continue;
     const isSel = selected && selected.kind === 'tr' && selected.id === tr.id;
-    mctx.fillStyle = TYPES[tr.type].color;
-    mctx.beginPath();
-    mctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-    mctx.fill();
+    drawTrainGlyph(tr, f, pulse);
+    const m = trainMid(f);
     if (tr.brokenUntil > SIM.t) {
+      const r = f.w + 1;
       mctx.strokeStyle = C.red;
       mctx.lineWidth = 1.5;
-      line(mctx, { x: p.x - r - 2, y: p.y - r - 2 }, { x: p.x + r + 2, y: p.y + r + 2 });
-      line(mctx, { x: p.x - r - 2, y: p.y + r + 2 }, { x: p.x + r + 2, y: p.y - r - 2 });
+      line(mctx, { x: m.x - r, y: m.y - r }, { x: m.x + r, y: m.y + r });
+      line(mctx, { x: m.x - r, y: m.y + r }, { x: m.x + r, y: m.y - r });
     }
     const stuck = tr.waitSince !== null && (tr.needsAction || SIM.t - tr.waitSince > 600);
     if (stuck) {
       mctx.strokeStyle = C.red;
       mctx.globalAlpha = 0.4 + 0.6 * pulse;
       mctx.lineWidth = 1.5;
-      mctx.beginPath();
-      mctx.arc(p.x, p.y, r + 3 + 2 * pulse, 0, Math.PI * 2);
-      mctx.stroke();
+      trainRing(f, 2.5 + 2 * pulse);
       mctx.globalAlpha = 1;
     }
     if (isSel) {
       mctx.strokeStyle = C.bright;
-      mctx.lineWidth = 1.5;
-      mctx.beginPath();
-      mctx.arc(p.x, p.y, r + 4, 0, Math.PI * 2);
-      mctx.stroke();
+      mctx.lineWidth = 1.2;
+      trainRing(f, 3);
     }
     if (labels || isSel) {
       const d = estDelay(tr);
+      const tag = `${trainLabel(tr)} ${fmt.delay(d)}`;
+      const tx = m.x + 8, ty = m.y + 14;
+      mctx.fillStyle = 'rgba(7,11,16,.8)';
+      mctx.fillRect(tx - 3, ty - 9, mctx.measureText(tag).width + 6, 12);
+      mctx.fillStyle = TYPES[tr.type].color;
+      mctx.fillRect(tx - 3, ty - 9, 1.5, 12);
       mctx.fillStyle = d > PUNCTUAL ? C.amber : C.text;
-      mctx.fillText(`${trainLabel(tr)} ${fmt.delay(d)}`, p.x + r + 4, p.y + r + 10);
+      mctx.fillText(tag, tx + 1, ty);
     }
   }
 }
@@ -358,8 +514,9 @@ function pick(sx, sy) {
   let best = null, bd = 12;
   for (const tr of SIM.trains.values()) {
     if (tr.at !== 'line') continue;
-    const p = trainPoint(tr);
-    const d = Math.hypot(p.x - sx, p.y - sy);
+    const f = trainFrame(tr);
+    const tail = { x: f.p.x - Math.cos(f.ang) * f.len, y: f.p.y - Math.sin(f.ang) * f.len };
+    const d = distToSegment({ x: sx, y: sy }, f.p, tail);
     if (d < bd) { bd = d; best = { kind: 'tr', id: tr.id }; }
   }
   if (best) return best;
@@ -449,7 +606,7 @@ function select(sel) {
 }
 
 window.addEventListener('keydown', e => {
-  if (e.target.tagName === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.ctrlKey || e.metaKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (k === 'escape') { if (overlayOpen() && running) closeOverlay(); else select(null); return; }
   if (!running) return;

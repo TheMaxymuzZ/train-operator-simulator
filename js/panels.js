@@ -38,7 +38,7 @@ function incidentRow(inc) {
 
 function detailNone() {
   let h = `<div class="d-title">PUESTO DE MANDO</div>
-    <div class="d-note">Selecciona una estación, un trayecto o un tren en el mapa. Las estaciones con borde blanco (·M) están en mando manual.</div>
+    <div class="d-note">Selecciona una estación, un trayecto o un tren en el mapa. Las estaciones con el núcleo y la marca M en ámbar están en mando manual.</div>
     <div class="d-sec">INCIDENCIAS ACTIVAS</div>`;
   if (!SIM.incidents.length) h += '<div class="d-note">Sin incidencias.</div>';
   for (const inc of SIM.incidents) h += incidentRow(inc);
@@ -386,7 +386,7 @@ function showStart() {
     `<button data-act="${group}" data-val="${key}" class="${String(startOpts[group]) === String(key) ? 'on' : ''}">${label}</button>`;
   openOverlay(`
     <div class="boot">
-      <div><span class="ok">●</span> ${APP.short} ${APP.version} · Centro de Regulación de Circulación</div>
+      <div><span class="ok">●</span> ${APP.short} ${APP.version} · Centro de Regulación de Circulación · operador ${escapeHtml(OPERATOR.name || '--')}</div>
       <div class="dim">Red cargada: ${Object.keys(ST).length} estaciones · ${SEGS.length} trayectos (${single} de vía única) · ${changers} cambiadores de ancho</div>
       <div class="dim">Plan del día: ${SIM.services.length} circulaciones programadas</div>
     </div>
@@ -461,7 +461,7 @@ function showReport(final) {
   const { s, p, types, worst, avg } = reportData();
   const title = final ? 'INFORME DE FIN DE TURNO' : 'INFORME PARCIAL DEL TURNO';
   let h = `<h1>${title}</h1>
-    <div class="d-sub">${SIM.shift.name} · ${fmt.time(SIM.shift.start)}–${fmt.time(SIM.shift.end)} · emitido a las ${fmt.time(SIM.t)}</div>
+    <div class="d-sub">${SIM.shift.name} · ${fmt.time(SIM.shift.start)}–${fmt.time(SIM.shift.end)} · operador ${escapeHtml(OPERATOR.name || '--')} · emitido a las ${fmt.time(SIM.t)}</div>
     <div class="kpis">
       <div><span>LLEGADAS</span><b>${s.done}</b></div>
       <div><span>PUNTUALIDAD</span><b class="${p === null ? '' : p >= 90 ? 'ok' : p >= 75 ? 'late' : 'vlate'}">${p === null ? '--' : p + '%'}</b></div>
@@ -503,6 +503,7 @@ function reportText() {
   const L = [];
   L.push(`${APP.short} ${APP.version} · ${APP.name}`);
   L.push(`INFORME DE TURNO · ${SIM.shift.name} ${fmt.time(SIM.shift.start)}-${fmt.time(SIM.shift.end)} · emitido ${fmt.time(SIM.t)}`);
+  L.push(`Operador: ${OPERATOR.name || '--'} · ${POSTS[OPERATOR.post]}`);
   L.push('='.repeat(64));
   L.push(`Llegadas: ${s.done}   Puntualidad: ${p === null ? '--' : p + '%'}   Retraso medio: ${s.done ? fmt.delay(avg) : '--'}   Calificación: ${rating(p)}`);
   L.push('');

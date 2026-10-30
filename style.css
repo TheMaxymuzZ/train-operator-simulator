@@ -266,3 +266,71 @@ table.grid td { padding: 4px 8px 4px 0; border-bottom: 1px solid #111a22; }
   .brand .sub { display: none; }
   #detail { max-height: none; }
 }
+
+/* --- Operator chip ------------------------------------------------------- */
+.op-chip { display: flex; align-items: center; gap: 6px; padding-left: 10px; border-left: 1px solid var(--line); }
+.op-chip[hidden] { display: none; }
+.op-chip b { color: var(--bright); font-weight: 600; letter-spacing: .08em; }
+.op-chip button { font-size: 10px; padding: 3px 7px; }
+
+/* --- Title screen / sign-in ---------------------------------------------- */
+.login {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: var(--bg);
+  transition: opacity .5s ease;
+}
+.login.out { opacity: 0; pointer-events: none; }
+.login.hidden { display: none; }
+.login::after {
+  /* faint scanlines over the whole screen */
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px);
+}
+#login-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.login-card {
+  position: relative; z-index: 1;
+  width: 100%; max-width: 440px;
+  border: 1px solid var(--line);
+  background: rgba(12, 18, 24, .94);
+  box-shadow: 0 0 0 1px rgba(76, 243, 160, .05), 0 20px 60px rgba(0, 0, 0, .6);
+  padding: 22px 24px 16px;
+  animation: lg-in .35s ease;
+}
+@keyframes lg-in { from { opacity: 0; transform: translateY(6px); } }
+.lg-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+.lg-mark { width: 44px; height: 44px; flex: none; }
+.lg-title { color: var(--accent); font-size: 15px; font-weight: 700; letter-spacing: .16em; }
+.lg-sub { color: var(--dim); font-size: 10px; letter-spacing: .12em; margin-top: 4px; }
+.lg-head { color: var(--dim); font-size: 11px; letter-spacing: .16em; border-top: 1px solid var(--line); padding-top: 14px; margin-bottom: 12px; }
+.lg-form label { display: block; margin-bottom: 10px; }
+.lg-form label span { display: block; color: var(--dim); font-size: 10px; letter-spacing: .14em; margin-bottom: 4px; }
+.lg-form input, .lg-form select {
+  width: 100%;
+  font: inherit; font-size: 13px; letter-spacing: .06em;
+  color: var(--bright);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 8px 10px;
+  outline: none;
+}
+.lg-form input:focus, .lg-form select:focus { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(76, 243, 160, .25); }
+.lg-form input::placeholder { color: #34495c; }
+.lg-form button { width: 100%; padding: 9px; margin-top: 4px; font-size: 12px; letter-spacing: .16em; }
+.lg-err { min-height: 16px; color: var(--red); font-size: 11px; margin-bottom: 6px; }
+.lg-note { color: var(--dim); font-size: 10px; margin-top: 12px; line-height: 1.5; }
+.lg-foot { display: flex; justify-content: space-between; color: #34495c; font-size: 10px; letter-spacing: .1em; margin-top: 16px; border-top: 1px solid var(--line); padding-top: 8px; }
+.lg-term { font-size: 11px; line-height: 1.75; color: var(--text); max-height: 220px; overflow: auto; }
+.lg-term > div:last-child::after { content: "▌"; color: var(--accent); margin-left: 4px; animation: blink 1s steps(1) infinite; }
+.lg-term > .lg-row:last-child::after { content: none; }
+@keyframes blink { 50% { opacity: 0; } }
+.lg-row { display: flex; justify-content: space-between; gap: 12px; }
+.lg-row i { color: var(--dim); font-style: normal; }
+.lg-row b { color: var(--dim); font-weight: 600; flex: none; }
+.lg-row b.ok { color: var(--accent); }
+.lg-bar { height: 4px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.lg-bar i { display: block; height: 100%; width: 0; background: var(--accent); box-shadow: 0 0 8px var(--accent); transition: width .25s ease; }
+.lg-pct { display: flex; justify-content: flex-end; color: var(--accent); font-size: 10px; margin: 4px 0 8px; }
+
+.legend svg { display: block; flex: none; }
