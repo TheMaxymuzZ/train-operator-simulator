@@ -4,57 +4,84 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Train Operator Simulator</title>
-  <meta name="description" content="Simulador minimalista de control de tráfico ferroviario: eres el operador frente al monitor.">
+  <meta name="description" content="Simulador de control de tráfico ferroviario sobre la red española, con estética de terminal.">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="terminal">
+  <div class="app">
     <header class="bar">
       <div class="brand">
         <span class="dot"></span>
-        <span>CTC-01</span>
-        <span class="dim">// PUESTO DE MANDO · SECTOR CENTRAL</span>
+        <span>CTC·ES</span>
+        <span class="dim">// CENTRO DE REGULACIÓN DE CIRCULACIÓN</span>
       </div>
       <div class="stats">
         <div class="stat"><span class="dim">HORA</span><b id="clock">06:00</b></div>
-        <div class="stat"><span class="dim">PUNTOS</span><b id="score">0</b></div>
-        <div class="stat"><span class="dim">LLEGADAS</span><b id="delivered">0</b></div>
-        <div class="stat"><span class="dim">ERRORES</span><b id="strikes">0/3</b></div>
-        <div class="stat"><span class="dim">EN RED</span><b id="active">0</b></div>
+        <div class="stat"><span class="dim">EN RED</span><b id="s-active">0</b></div>
+        <div class="stat"><span class="dim">LLEGADAS</span><b id="s-done">0</b></div>
+        <div class="stat"><span class="dim">PUNTUALIDAD</span><b id="s-punct">--</b></div>
+        <div class="stat"><span class="dim">RETRASO MEDIO</span><b id="s-delay">--</b></div>
+        <div class="stat"><span class="dim">AVISOS</span><b id="s-alerts">0</b></div>
       </div>
-      <div class="buttons">
-        <button id="btn-speed" title="Velocidad de simulación">x1</button>
-        <button id="btn-sound" title="Sonido">SND ON</button>
-        <button id="btn-pause" title="Pausa (P)">PAUSA</button>
+      <div class="speed" id="speed">
+        <button data-speed="0" title="Pausa (espacio)">II</button>
+        <button data-speed="1">x1</button>
+        <button data-speed="10" class="on">x10</button>
+        <button data-speed="30">x30</button>
+        <button data-speed="60">x60</button>
       </div>
     </header>
 
-    <main class="screen">
-      <canvas id="map" aria-label="Monitor de tráfico ferroviario"></canvas>
-
-      <div id="overlay" class="overlay">
-        <div class="panel">
-          <h1 id="ov-title">TRAIN OPERATOR SIMULATOR</h1>
-          <div id="ov-body">
-            <p>Turno de mañana, 06:00 a 14:00. Los trenes entran por los terminales de la red y cada uno lleva su destino.</p>
-            <ul>
-              <li><b>Clic en un desvío</b> (círculo numerado) o pulsa su <b>tecla 1-0</b> para cambiar la vía.</li>
-              <li><b>Clic en un tren</b> para detenerlo o reanudar la marcha.</li>
-              <li>Un desvío ocupado por un tren no se puede mover.</li>
-              <li>Lleva cada tren al terminal de su color. Tres errores de ruta y te relevan del puesto.</li>
-              <li>Una colisión termina el turno al instante.</li>
-            </ul>
-          </div>
-          <button id="ov-btn" class="primary">INICIAR TURNO</button>
+    <div class="main">
+      <section class="screen">
+        <canvas id="map" aria-label="Mapa de la red ferroviaria"></canvas>
+        <div class="sectors" id="sectors"></div>
+        <div class="legend">
+          <span><i style="background:#5fd4ff"></i>AV</span>
+          <span><i style="background:#c792ff"></i>LD</span>
+          <span><i style="background:#4cf3a0"></i>MD</span>
+          <span><i style="background:#ffb547"></i>MER</span>
+          <span><i class="dbl"></i>doble vía</span>
+          <span><i class="sgl"></i>vía única</span>
         </div>
-      </div>
-    </main>
+
+        <div id="overlay" class="overlay">
+          <div class="panel">
+            <h1 id="ov-title">TRAIN OPERATOR SIMULATOR</h1>
+            <div id="ov-body">
+              <p>Eres el regulador de circulación de la red. Los trenes siguen su horario por líneas divididas en cantones protegidos por señales; tu trabajo es que lleguen a tiempo.</p>
+              <ul>
+                <li><b>Arrastra</b> para mover el mapa, <b>rueda</b> o pellizco para el zoom, o usa los botones de sector.</li>
+                <li><b>Clic en una estación</b> para ver sus vías, los trenes que llegan y pasarla a mando <b>MANUAL</b>.</li>
+                <li>En mando manual tú asignas la vía de entrada y das la <b>orden de salida</b>. En automático el sistema lo hace por orden de llegada, sin prioridades.</li>
+                <li><b>Retén</b> trenes lentos para que los rápidos adelanten, y organiza los cruces en vía única: un tren solo entra si hay vía libre en la estación siguiente.</li>
+                <li>El gráfico de marcha muestra horario previsto (discontinuo) y real (continuo) por corredor.</li>
+              </ul>
+            </div>
+            <button id="ov-btn" class="primary">INICIAR JORNADA</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side">
+        <div class="box" id="detail"></div>
+        <div class="box chart-box">
+          <div class="box-head">
+            <span>GRÁFICO DE MARCHA</span>
+            <select id="corridor" aria-label="Corredor"></select>
+          </div>
+          <canvas id="chart"></canvas>
+        </div>
+      </aside>
+    </div>
 
     <footer class="console">
-      <div class="log-title dim">REGISTRO DE EVENTOS</div>
+      <div class="box-head"><span>REGISTRO DE EVENTOS</span></div>
       <ul id="log"></ul>
     </footer>
   </div>
-  <script src="game.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/sim.js"></script>
+  <script src="js/ui.js"></script>
 </body>
 </html>
