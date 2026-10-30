@@ -1,17 +1,38 @@
 # Train Operator Simulator
 
-Simulador minimalista de control de tráfico ferroviario. La pantalla es el monitor del operador: fondo oscuro, vías como líneas, desvíos numerados y trenes que entran a la red con un destino.
+Simulador de regulación de tráfico ferroviario sobre la red española. La pantalla es el puesto de mando: fondo oscuro, interfaz de terminal, líneas esquemáticas sobre el mapa de España e iconos de colores por tipo de tren.
+
+## La red
+
+- 32 estaciones reales (Madrid, Barcelona, Zaragoza, Valencia, Sevilla, Málaga, Bilbao, A Coruña…) unidas por líneas de **doble vía** y de **vía única**.
+- Cada línea está dividida en **cantones** de unos 12 km, protegidos por señales (verde, amarillo, rojo). Un tren nunca entra en un cantón ocupado y frena con antelación según su curva de frenado.
+- En **vía única** solo circulan trenes en un sentido a la vez, y un tren solo entra si tiene vía reservada en la estación siguiente para el cruce.
+- Las estaciones tienen un número limitado de vías. Los trenes que no paran atraviesan la estación por la vía general si la línea siguiente está libre.
+
+## Trenes y horario
+
+Unas 270 circulaciones diarias de cuatro tipos, cada uno con su velocidad máxima y su color:
+
+| Tipo | Velocidad | Color |
+| --- | --- | --- |
+| AV · Alta velocidad | 300 km/h | cian |
+| LD · Larga distancia | 200 km/h | violeta |
+| MD · Media distancia | 160 km/h | verde |
+| MER · Mercancías | 100 km/h | ámbar |
+
+Cada tren tiene su horario de paso por cada estación. La puntualidad cuenta llegadas con 5 minutos de retraso o menos.
 
 ## Cómo jugar
 
-- Es el turno de mañana, de 06:00 a 14:00 (un segundo real equivale a un minuto de juego).
-- Los trenes se anuncian en un terminal unos segundos antes de entrar. Cada tren tiene el color del terminal al que va.
-- **Clic en un desvío** (círculo numerado) o pulsa su **tecla 1-0** para cambiar la vía. La ruta activa se ve más clara y la otra rama queda cortada.
-- **Clic en un tren** para detenerlo o reanudar la marcha.
-- Un desvío con un tren encima se bloquea (se marca en ámbar).
-- Llegada a tiempo: +100. Con retraso: +40. Destino equivocado: −75 y un error. Con tres errores te relevan del puesto.
-- Una colisión termina el turno al instante.
-- `P` o espacio pausa la simulación. El botón `x1/x2` acelera el tiempo.
+- **Arrastra** para mover el mapa, **rueda** o pellizco para el zoom, o usa los botones de sector. Al acercarte aparecen los cantones y las señales.
+- **Clic en una estación** para ver sus vías, los trenes que se acercan y los próximos orígenes.
+- Cada estación puede estar en mando **AUTO** o **MANUAL**:
+  - En **AUTO** el sistema asigna vías por orden de llegada, da salida en cuanto la línea está libre y hace que los trenes lentos cedan el paso a los rápidos. Las vías impares se usan para los trenes que se alejan de Madrid y las pares para los que se acercan.
+  - En **MANUAL** tú asignas la vía de entrada (`V1`, `V2`…), das **PASO** a los trenes que no paran y la orden de **SALIDA** a los que están en el andén.
+- **RETENER** detiene un tren en su próxima estación hasta que lo liberes: sirve para dejar adelantar o para ordenar los cruces en vía única.
+- La columna **AVISOS** y los círculos rojos en el mapa marcan trenes que esperan una orden o llevan más de 10 minutos parados.
+- El **gráfico de marcha** muestra, por corredor, el horario previsto (discontinuo) y la marcha real (continua).
+- Velocidad de simulación: pausa (espacio), x1, x10, x30 y x60.
 
 ## Ejecutar en local
 
@@ -23,6 +44,7 @@ En el repositorio, ve a **Settings → Pages**, elige **Deploy from a branch**, 
 
 ## Estructura
 
-- `index.html`: interfaz del puesto (cabecera, monitor y registro de eventos).
-- `style.css`: estética de terminal.
-- `game.js`: red de vías, trenes, desvíos, colisiones y bucle de juego en canvas.
+- `index.html` y `style.css`: interfaz del puesto de mando.
+- `js/data.js`: estaciones, líneas, tipos de tren, plan de servicios y corredores.
+- `js/sim.js`: simulación (cantones, frenado, reservas de vía, vía única, horario, regulación automática).
+- `js/ui.js`: mapa, cámara, panel lateral, gráfico de marcha y controles.
